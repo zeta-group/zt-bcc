@@ -759,7 +759,8 @@ primary:
    <memcpy>
    <conversion>
    <parentheses>
-   <identifier>
+   <name-usage>
+   <qualified-name-usage>
    <number>
    <string>
    <character>
@@ -826,6 +827,12 @@ function-literal-static:
 function-literal-return:
    <specifier>
    <auto>
+
+name-usage:
+   <identifier>
+
+qualified-name-usage:
+   <path-coloncolon>
 
 identifier:
    [a-zA-Z_][a-zA-Z0-9_]*
