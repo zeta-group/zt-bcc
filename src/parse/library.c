@@ -442,7 +442,6 @@ struct path* p_read_path( struct parse* parse ) {
    // Separator of path components can be either `::` or `.`. The separator
    // must be consistent throughout the whole path.
    enum tk separator = ( parse->tk == TK_DOT ) ? TK_DOT : TK_COLONCOLON;
-   path->match_against_nss_only = ( separator == TK_COLONCOLON );
    // Tail of path.
    struct path* head = path;
    struct path* tail = head;
@@ -451,6 +450,7 @@ struct path* p_read_path( struct parse* parse ) {
       p_test_tk( parse, TK_ID );
       path = alloc_path( parse->tk_pos );
       path->text = parse->tk_text;
+      path->dot_separator = ( separator == TK_DOT );
       tail->next = path;
       tail = path;
       p_read_tk( parse );
@@ -465,7 +465,7 @@ static struct path* alloc_path( struct pos pos ) {
    path->pos = pos;
    path->upmost = false;
    path->current_ns = false;
-   path->match_against_nss_only = false;
+   path->dot_separator = false;
    return path;
 }
 
