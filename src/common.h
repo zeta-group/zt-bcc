@@ -122,6 +122,8 @@ struct options {
    bool write_asserts;
    bool show_version;
    bool slade_mode;
+   bool legacy_ns_dot;
+
    struct {
       const char* dir_path;
       int lifetime;
