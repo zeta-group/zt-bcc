@@ -127,6 +127,7 @@ struct node {
       NODE_BUILDMSG,
       // 60
       NODE_QUALIFIEDNAMEUSAGE,
+      NODE_LENGTHOF,
    } type;
 };
 
@@ -514,6 +515,12 @@ struct memcpy_call {
       MEMCPY_STRUCT,
    } type;
    bool array_cast;
+};
+
+struct lengthof {
+   struct node node;
+   struct expr* operand;
+   int value;
 };
 
 struct conversion {
