@@ -47,35 +47,6 @@ tests = [
     'test/list.bcs',
     'test/parse_fixed.bcs',
     'test/bigint.bcs',
-    'test/jm_header/telepatch.bcs',
-    'test/jm_header/svmz.bcs',
-    'test/jm_header/jm.bcs',
-    'test/jm_header/solo_ranker.bcs',
-    'test/jm_header/team_ranker.h.bcs',
-    'test/jm_header/luk.h.bcs',
-    'test/jm_header/utility.bcs',
-    'test/jm_header/rsd.bcs',
-    'test/jm_header/utility.h.bcs',
-    'test/jm_header/who_exited.bcs',
-    'test/jm_header/timer.bcs',
-    'test/jm_header/luk.bcs',
-    'test/jm_header/telepatch.h.bcs',
-    'test/jm_header/who_exited.h.bcs',
-    'test/jm_header/auto_fist.h.bcs',
-    'test/jm_header/map_message.bcs',
-    'test/jm_header/solo_ranker.h.bcs',
-    'test/jm_header/jm.h.bcs',
-    'test/jm_header/config.h.bcs',
-    'test/jm_header/map_message.h.bcs',
-    'test/jm_header/svmz.h.bcs',
-    'test/jm_header/auto_fist.bcs',
-    'test/jm_header/rsd.h.bcs',
-    'test/jm_header/client.bcs',
-    'test/jm_header/team_ranker.bcs',
-    'test/jm_header/client.h.bcs',
-    'test/jm_header/timer.h.bcs',
-    'test/jm_header/hs.h.bcs',
-    'test/jm_header/hs.bcs',
     'test/stack.bcs',
     'test/sorting.bcs',
     'test/functions.bcs'
@@ -90,22 +61,16 @@ incdirs = include_directories(dirs)
 
 bcc = executable('bcc', sources: src, include_directories: incdirs)
 
-# Build standard BCS libraries.
-bcs_libs = [
-    'lib/zcommon/zandronum.bcs',
-    'lib/zcommon/master.bcs',
-    'lib/zcommon/gzdoom.bcs',
-    'lib/zasm.bcs',
-    'lib/zasm.h.bcs',
-    'lib/zcommon.bcs',
-    'lib/zcommon.h.bcs'
-]
-
-foreach lib : files(bcs_libs)
-    run_target('bcslib', command: ['scripts/libbuild.sh', lib, 'bcc', '-x', 'bcs', '-acc-stats', '-I', 'lib'])
-endforeach
 
 # Test BCS compilation
-foreach t : files(tests)
-    test('[BCS compilation] @0@'.format(t), bcc, args: ['-x', 'bcs', '-acc-stats', '-I', 'lib', '-I', 'tests', t])
-endforeach
+testscript = find_program('scripts/test.sh', required: false)
+
+if testscript.found()
+    foreach t : tests
+        test('[BCS compilation] @0@'.format(t.split('/')[-1]), testscript, args: [files(t), '@0@/lib'.format(meson.current_source_dir())])
+    endforeach
+
+else
+    warning('Test script (scripts/test.sh) not found, not generating tests.')
+    
+endif
