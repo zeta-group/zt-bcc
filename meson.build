@@ -83,17 +83,29 @@ tests = [
 
 dirs = [
     'src',
-    'src/codegen',
-    'src/cache',
-    'src/parse',
-    'src/semantic'
+    'src/parse'
 ]
 
 incdirs = include_directories(dirs)
 
 bcc = executable('bcc', sources: src, include_directories: incdirs)
 
+# Build standard BCS libraries.
+bcs_libs = [
+    'lib/zcommon/zandronum.bcs',
+    'lib/zcommon/master.bcs',
+    'lib/zcommon/gzdoom.bcs',
+    'lib/zasm.bcs',
+    'lib/zasm.h.bcs',
+    'lib/zcommon.bcs',
+    'lib/zcommon.h.bcs'
+]
+
+foreach lib : files(bcs_libs)
+    run_target('stdlib', command: ['scripts/libbuild.sh', lib, 'bcc', '-x', 'bcs', '-acc-stats', '-I', 'lib'])
+endforeach
+
 # Test BCS compilation
-foreach t : tests
-    test('[BCS compilation] @0@'.format(t), bcc, args: ['-x', 'bcs', '-acc-stats', '-I', 'tests', t])
+foreach t : files(tests)
+    test('[BCS compilation] @0@'.format(t), bcc, args: ['-x', 'bcs', '-acc-stats', '-I', 'lib', '-I', 'tests', t])
 endforeach
