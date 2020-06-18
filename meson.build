@@ -81,7 +81,17 @@ tests = [
     'test/functions.bcs'
 ]
 
-bcc = executable('bcc', sources: src)
+dirs = [
+    'src',
+    'src/codegen',
+    'src/cache',
+    'src/parse',
+    'src/semantic'
+]
+
+incdirs = include_directories(dirs)
+
+bcc = executable('bcc', sources: src, include_directories: incdirs)
 
 # Test BCS compilation
 foreach t : tests
