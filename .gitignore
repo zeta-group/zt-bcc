@@ -1,2 +1,2 @@
-/build/ # Meson build directory (generate with 'meson build')
-*.o     # BCS build output
+build/          # Meson build directory (generate with 'meson build')
+**/*.o          # BCS build output
