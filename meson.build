@@ -102,7 +102,7 @@ bcs_libs = [
 ]
 
 foreach lib : files(bcs_libs)
-    run_target('stdlib', command: ['scripts/libbuild.sh', lib, 'bcc', '-x', 'bcs', '-acc-stats', '-I', 'lib'])
+    run_target('bcslib', command: ['scripts/libbuild.sh', lib, 'bcc', '-x', 'bcs', '-acc-stats', '-I', 'lib'])
 endforeach
 
 # Test BCS compilation
