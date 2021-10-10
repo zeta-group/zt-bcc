@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
+<CodeBlocks_project_file>
+	<FileVersion major="1" minor="6" />
+	<Project>
+		<Option title="zt-bcc" />
+		<Option pch_mode="2" />
+		<Option compiler="gcc" />
+		<Build>
+			<Target title="Release">
+				<Option output="bin/Release/zt-bcc" prefix_auto="1" extension_auto="1" />
+				<Option object_output="obj/Release/" />
+				<Option type="1" />
+				<Option compiler="gcc" />
+				<Compiler>
+					<Add option="-O2" />
+				</Compiler>
+				<Linker>
+					<Add option="-s" />
+				</Linker>
+			</Target>
+		</Build>
+		<Compiler>
+			<Add option="-Wall" />
+		</Compiler>
+		<Unit filename="src/builtin.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/cache/archive.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/cache/cache.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/cache/cache.h" />
+		<Unit filename="src/cache/field.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/cache/field.h" />
+		<Unit filename="src/cache/library.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/codegen/asm.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/codegen/chunk.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/codegen/dec.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/codegen/expr.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/codegen/linear.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/codegen/linear.h" />
+		<Unit filename="src/codegen/obj.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/codegen/pcode.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/codegen/pcode.h" />
+		<Unit filename="src/codegen/phase.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/codegen/phase.h" />
+		<Unit filename="src/codegen/stmt.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/common.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/common.h" />
+		<Unit filename="src/gbuf.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/gbuf.h" />
+		<Unit filename="src/main.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/parse/asm.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/parse/dec.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/parse/expr.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/parse/library.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/parse/phase.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/parse/phase.h" />
+		<Unit filename="src/parse/stmt.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/parse/token/dirc.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/parse/token/expr.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/parse/token/info.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/parse/token/output.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/parse/token/queue.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/parse/token/source.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/parse/token/stream.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/parse/token/user.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/semantic/asm.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/semantic/dec.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/semantic/expr.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/semantic/phase.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/semantic/phase.h" />
+		<Unit filename="src/semantic/stmt.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/semantic/type.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/task.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="src/task.h" />
+		<Unit filename="src/version.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Extensions>
+			<lib_finder disable_auto="1" />
+		</Extensions>
+	</Project>
+</CodeBlocks_project_file>
