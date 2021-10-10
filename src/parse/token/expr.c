@@ -8,7 +8,7 @@
 
 #include <string.h>
 
-#include "phase.h"
+#include "../phase.h"
 
 struct calc {
    jmp_buf bail;

@@ -1,7 +1,7 @@
 #ifndef SRC_PARSE_PHASE_H
 #define SRC_PARSE_PHASE_H
 
-#include "task.h"
+#include "../task.h"
 
 struct cache;
 

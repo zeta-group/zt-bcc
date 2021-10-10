@@ -1,4 +1,4 @@
-#include "phase.h"
+#include "../phase.h"
 
 void p_init_token_queue( struct token_queue* queue, bool stream ) {
    queue->head = NULL;

@@ -1,4 +1,4 @@
-#include "common.h"
+#include "../common.h"
 #include "pcode.h"
 
 enum { VARIABLE_ARGC = -1 };
@@ -445,7 +445,7 @@ static struct direct_pcode g_direct_pcode_table[] = {
    { PCD_SETFONT, PCD_SETFONTDIRECT, 1 }
 };
 
-const struct direct_pcode* c_get_direct_pcode( int code ) { 
+const struct direct_pcode* c_get_direct_pcode( int code ) {
    for ( int i = 0; i < ARRAY_SIZE( g_direct_pcode_table ); ++i ) {
       if ( g_direct_pcode_table[ i ].code == code ) {
          return &g_direct_pcode_table[ i ];

@@ -3,7 +3,7 @@
 #include <ctype.h>
 #include <errno.h>
 
-#include "phase.h"
+#include "../phase.h"
 
 enum { LINE_OFFSET = 1 };
 enum { ACC_EOF_CHARACTER = 127 };
@@ -72,7 +72,7 @@ void p_load_main_source( struct parse* parse ) {
 void p_load_imported_lib_source( struct parse* parse, struct import_dirc* dirc,
    struct file_entry* file ) {
    struct request request;
-   init_request_module( &request, file ); 
+   init_request_module( &request, file );
    load_module( parse, &request );
    if ( request.source ) {
       parse->lib->file = file;
@@ -2082,7 +2082,7 @@ static void read_token( struct parse* parse, struct token* token ) {
       // Single quotation marks can be used to improve the readability of long
       // numeric literals by visually grouping digits. Such a single quotation
       // mark is called a digit separator. Digit separators are ignored by the
-      // compiler. 
+      // compiler.
       else if ( ch == '\'' ) {
          ch = read_ch( parse );
          if ( ! ( ch == '0' || ch == '1' ) ) {

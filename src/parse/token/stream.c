@@ -1,7 +1,7 @@
 #include <string.h>
 #include <time.h>
 
-#include "phase.h"
+#include "../phase.h"
 
 struct macro_expan {
    struct macro* macro;

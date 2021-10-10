@@ -1,6 +1,6 @@
 #include <string.h>
 
-#include "task.h"
+#include "../task.h"
 #include "phase.h"
 
 #define MAX_MAP_LOCATIONS 128
@@ -500,7 +500,7 @@ static void patch_value( struct codegen* codegen, struct value* value ) {
       UNREACHABLE();
       c_bail( codegen );
    }
-} 
+}
 
 // The reason for sorting the variables is to reduce the size of the chunks.
 // A chunk might need some of the variables but not all, so the variables are

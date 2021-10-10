@@ -1,8 +1,8 @@
 #include <string.h>
 
 #include "phase.h"
-#include "codegen/phase.h"
-#include "codegen/pcode.h"
+#include "../codegen/phase.h"
+#include "../codegen/pcode.h"
 
 struct test {
    struct stmt_test* stmt_test;

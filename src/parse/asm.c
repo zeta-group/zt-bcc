@@ -1,8 +1,8 @@
 #include <string.h>
 
 #include "phase.h"
-#include "codegen/phase.h"
-#include "codegen/pcode.h"
+#include "../codegen/phase.h"
+#include "../codegen/pcode.h"
 
 static struct inline_asm* alloc_inline_asm( void );
 static void read_opcode( struct parse* parse, struct inline_asm* inline_asm );

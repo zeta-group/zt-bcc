@@ -1,4 +1,4 @@
-#include "phase.h"
+#include "../phase.h"
 
 // The table below contains information about the available tokens. The order
 // of the table corresponds to the order of the token enumeration.

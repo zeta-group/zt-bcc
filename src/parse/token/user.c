@@ -1,7 +1,7 @@
 #include <string.h>
 #include <ctype.h>
 
-#include "phase.h"
+#include "../phase.h"
 
 static void read_peeked_token( struct parse* parse );
 static void read_token( struct parse* parse );
@@ -194,7 +194,7 @@ static void read_token_bcs( struct parse* parse ) {
          while ( true ) {
             p_init_streamtk_iter( parse, &iter );
             p_next_stream( parse, &iter );
-            if ( 
+            if (
                iter.token->type == TK_HORZSPACE ||
                iter.token->type == TK_NL ) {
                p_read_stream( parse );
@@ -294,7 +294,7 @@ void p_test_tk( struct parse* parse, enum tk expected ) {
             parse->tk_text );
       }
       else {
-         p_diag( parse, DIAG_POS_ERR | DIAG_SYNTAX, &parse->tk_pos, 
+         p_diag( parse, DIAG_POS_ERR | DIAG_SYNTAX, &parse->tk_pos,
             "unexpected %s", p_present_token_temp( parse, parse->tk ) );
          p_diag( parse, DIAG_POS, &parse->tk_pos,
             "expecting %s here", p_present_token_temp( parse, expected ) );
@@ -396,7 +396,7 @@ void p_read_eoptiontk( struct parse* parse ) {
 
 void p_test_preptk( struct parse* parse, enum tk expected ) {
    if ( parse->token->type != expected ) {
-      p_diag( parse, DIAG_POS_ERR | DIAG_SYNTAX, &parse->token->pos, 
+      p_diag( parse, DIAG_POS_ERR | DIAG_SYNTAX, &parse->token->pos,
          "unexpected %s", p_present_token_temp( parse, parse->token->type ) );
       p_diag( parse, DIAG_POS, &parse->token->pos,
          "expecting %s here", p_present_token_temp( parse, expected ) );
@@ -416,7 +416,7 @@ void p_test_preptk( struct parse* parse, enum tk expected ) {
          readtk_peeked( parse );
          str_append( &string, parse->token->text );
 printf( "t %d\n", parse->token->type );
-         
+
       }
       if ( string.length ) {
    printf( "string: %s\n", string.value );

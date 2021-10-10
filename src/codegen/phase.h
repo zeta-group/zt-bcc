@@ -1,7 +1,7 @@
 #ifndef SRC_CODEGEN_PHASE_H
 #define SRC_CODEGEN_PHASE_H
 
-#include "task.h"
+#include "../task.h"
 #include "linear.h"
 
 #define BUFFER_SIZE 65536

@@ -1,7 +1,7 @@
 #ifndef SRC_SEMANTIC_PHASE_H
 #define SRC_SEMANTIC_PHASE_H
 
-#include "task.h"
+#include "../task.h"
 
 struct follower {
    struct path* path;

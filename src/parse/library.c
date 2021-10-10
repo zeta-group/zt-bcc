@@ -1,7 +1,7 @@
 #include <string.h>
 
 #include "phase.h"
-#include "cache/cache.h"
+#include "../cache/cache.h"
 
 enum pseudo_dirc {
    PSEUDODIRC_UNKNOWN,
@@ -642,7 +642,7 @@ static void read_pseudo_dirc( struct parse* parse, bool first_object ) {
       break;
    case TK_NOCOMPACT:
       // NOTE: This restriction doesn't apply to our compiler, but keep it to
-      // stay compatible with acc. 
+      // stay compatible with acc.
       if ( parse->lang == LANG_ACS && (
          list_size( &parse->lib->scripts ) > 0 ||
          list_size( &parse->lib->funcs ) > 0 ) ) {
@@ -743,7 +743,7 @@ static void read_import( struct parse* parse, struct pos* pos ) {
    struct import_dirc* dirc = alloc_import_dirc();
    dirc->file_path = parse->tk_text;
    dirc->pos = parse->tk_pos;
-   list_append( &parse->lib->import_dircs, dirc ); 
+   list_append( &parse->lib->import_dircs, dirc );
    p_read_tk( parse );
 }
 

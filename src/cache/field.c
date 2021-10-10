@@ -1,6 +1,6 @@
 #include <string.h>
 
-#include "gbuf.h"
+#include "../gbuf.h"
 #include "field.h"
 
 // Writer

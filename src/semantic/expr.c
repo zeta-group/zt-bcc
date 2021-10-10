@@ -1,7 +1,7 @@
 #include <string.h>
 
-#include "parse/phase.h"
-#include "codegen/phase.h"
+#include "../parse/phase.h"
+#include "../codegen/phase.h"
 #include "phase.h"
 
 struct result {
@@ -424,7 +424,7 @@ static void test_binary( struct semantic* semantic, struct expr_test* test,
          "right-operand", &rside.type, &binary->pos );
       s_bail( semantic );
    }
-   // Implicit `raw` cast: 
+   // Implicit `raw` cast:
    // Mixing a `raw` operand with an operand of another type will implicitly
    // cast the other operand to `raw`. I don't like this being here. Since
    // this cast happens here only, it will do for now. This cast will probably
@@ -1737,7 +1737,7 @@ static void test_access( struct semantic* semantic, struct expr_test* test,
    else {
       struct str string;
       str_init( &string );
-      s_present_type( &lside.type, &string ); 
+      s_present_type( &lside.type, &string );
       s_diag( semantic, DIAG_POS_ERR, &access->pos,
          "left operand (`%s`) does not support member access", string.value );
       str_deinit( &string );
@@ -1858,7 +1858,7 @@ static void select_ns_object( struct semantic* semantic,
    struct expr_test* test, struct result* result, struct object* object ) {
    switch ( object->node.type ) {
    case NODE_CONSTANT:
-      select_constant( semantic, test, result, 
+      select_constant( semantic, test, result,
          ( struct constant* ) object );
       break;
    case NODE_ENUMERATOR:
@@ -2721,7 +2721,7 @@ static void select_object( struct semantic* semantic, struct expr_test* test,
    struct result* result, struct object* object ) {
    switch ( object->node.type ) {
    case NODE_CONSTANT:
-      select_constant( semantic, test, result, 
+      select_constant( semantic, test, result,
          ( struct constant* ) object );
       break;
    case NODE_ENUMERATOR:

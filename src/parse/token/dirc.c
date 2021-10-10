@@ -1,6 +1,6 @@
 #include <string.h>
 
-#include "phase.h"
+#include "../phase.h"
 
 #define CMDLINEMACRO_TEXT "1"
 
@@ -876,7 +876,7 @@ void p_define_imported_macro( struct parse* parse ) {
 }
 
 // The predefined __INCLUDED__ macro is present as long as an #included file is
-// being processed. 
+// being processed.
 void p_define_included_macro( struct parse* parse ) {
    struct macro* macro = p_find_macro( parse, "__INCLUDED__" );
    if ( ! macro ) {

@@ -1,4 +1,4 @@
-#include "phase.h"
+#include "../phase.h"
 
 static void output_source( struct parse* parse, struct str* output );
 static void output_token( struct parse* parse, struct str* output );

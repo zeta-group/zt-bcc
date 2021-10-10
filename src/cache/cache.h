@@ -1,8 +1,8 @@
 #ifndef SRC_CACHE_CACHE_H
 #define SRC_CACHE_CACHE_H
 
-#include "task.h"
-#include "gbuf.h"
+#include "../task.h"
+#include "../gbuf.h"
 #include "field.h"
 
 struct cache_entry {

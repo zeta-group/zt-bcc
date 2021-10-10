@@ -1,7 +1,7 @@
 #include <string.h>
 
 #include "phase.h"
-#include "cache/cache.h"
+#include "../cache/cache.h"
 
 static void run_phase( struct parse* parse );
 
