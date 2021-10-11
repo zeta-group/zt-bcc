@@ -1389,7 +1389,7 @@ static void read_multi_init( struct parse* parse, struct dec* dec,
       p_bail( parse );
    }
    while ( true ) {
-      if ( parse->tk == TK_BRACE_L ) { 
+      if ( parse->tk == TK_BRACE_L ) {
          read_multi_init( parse, dec, &read );
       }
       else {
@@ -1738,7 +1738,7 @@ bool p_is_paren_type( struct parse* parse ) {
             case TK_PAREN_L:
                p_next_tk( parse, &iter );
                // At this point, we are either inside the parameter list of a
-               // function literal or inside a conversion call.  
+               // function literal or inside a conversion call.
                switch ( iter.token->type ) {
                case TK_RAW:
                case TK_ENUM:
@@ -1960,7 +1960,7 @@ static void read_func( struct parse* parse, struct dec* dec ) {
          func->hidden = true;
       }
    }
-   if ( dec->static_qual && ! dec->area == DEC_LOCAL ) {
+   if ( dec->static_qual && (! dec->area == DEC_LOCAL) ) {
       p_diag( parse, DIAG_POS_ERR, &dec->name_pos,
          "only a nested function can be static-qualified" );
       p_bail( parse );
@@ -2002,7 +2002,7 @@ static void init_params( struct params* params ) {
    params->tail = NULL;
    params->min = 0;
    params->max = 0;
-} 
+}
 
 static void read_param_list( struct parse* parse, struct params* params ) {
    // The reason we peek is because the `void` keyword might be part of a
@@ -2418,7 +2418,7 @@ static void read_script_type( struct parse* parse,
          p_diag( parse, DIAG_POS_ERR, &reading->param_pos,
             "too many parameters in disconnect-script" );
          p_bail( parse );
- 
+
       }
       p_read_tk( parse );
    }
@@ -2645,7 +2645,7 @@ static void read_special( struct parse* parse ) {
    list_append( &parse->lib->objects, func );
 }
 
-static void init_special_reading( struct special_reading* reading ) { 
+static void init_special_reading( struct special_reading* reading ) {
    reading->param = NULL;
    reading->param_tail = NULL;
    reading->return_spec = SPEC_NONE;
