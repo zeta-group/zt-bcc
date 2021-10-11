@@ -12,7 +12,7 @@
 	"common.h"
 	"gbuf.h"
 
-1633846312 d:\my_c_adventures\git_clones\zt-bcc\src\common.h
+1633912840 d:\my_c_adventures\git_clones\zt-bcc\src\common.h
 	<stdlib.h>
 	<stdbool.h>
 	<stdarg.h>
@@ -176,7 +176,7 @@
 	<string.h>
 	"phase.h"
 
-1633909881 source:d:\my_c_adventures\git_clones\zt-bcc\src\parse\token\dirc.c
+1633910368 source:d:\my_c_adventures\git_clones\zt-bcc\src\parse\token\dirc.c
 	<string.h>
 	"../phase.h"
 

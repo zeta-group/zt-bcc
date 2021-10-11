@@ -11,6 +11,7 @@
 #define TAB_SIZE_MIN 1
 #define TAB_SIZE_MAX 100
 
+static bool check_slade_file( void );
 static void init_options( struct options* );
 static bool read_options( struct options*, char** );
 static void strip_rslash( char* );
@@ -43,6 +44,7 @@ int main( int argc, char* argv[] ) {
       goto deinit_mem;
    }
    struct options options;
+
    init_options( &options );
    if ( read_options( &options, argv ) ) {
       // No need to continue when help is requested.
@@ -107,6 +109,22 @@ int main( int argc, char* argv[] ) {
    return result;
 }
 
+static bool check_slade_file ( void ) {
+    FILE *slade_file;
+    slade_file = fopen("slade_mode.txt", "r");
+    if(slade_file == 0)
+    {
+        fclose(slade_file);
+        return false;
+    }
+    else
+    {
+        printf("SLADE mode on");
+        fclose(slade_file);
+        return true;
+    }
+}
+
 static void init_options( struct options* options ) {
    list_init( &options->includes );
    list_init( &options->defines );
@@ -115,20 +133,32 @@ static void init_options( struct options* options ) {
    options->object_file = NULL;
    // Default tab size for now is 4, since it's a common indentation size.
    options->tab_size = 4;
-   options->lang = LANG_ACS;
    options->acc_err = false;
    options->acc_stats = false;
-   options->one_column = false;
    options->help = false;
    options->preprocess = false;
    options->write_asserts = true;
-   options->lang_specified = false;
    options->show_version = false;
    options->cache.dir_path = NULL;
    options->cache.lifetime = -1;
    options->cache.enable = false;
    options->cache.clear = false;
    options->cache.print = false;
+   options->slade_mode = check_slade_file();
+
+   //SLADE mode implies -x bcs and -one-column
+   if(options->slade_mode)
+   {
+       options->lang = LANG_BCS;
+       options->lang_specified = true;
+       options->one_column = true;
+   }
+   else
+   {
+       options->lang = LANG_ACS;
+       options->lang_specified = false;
+       options->one_column = false;
+   }
 }
 
 static bool read_options( struct options* options, char** argv ) {
@@ -195,7 +225,7 @@ static bool read_options( struct options* options, char** argv ) {
             return false;
          }
       }
-      else if ( strcmp( option, "one-column" ) == 0 ) {
+      else if ( (strcmp( option, "one-column" ) == 0) && (!options->slade_mode) ) {
          options->one_column = true;
       }
       else if ( strcmp( option, "acc-err" ) == 0 ||
@@ -254,30 +284,39 @@ static bool read_options( struct options* options, char** argv ) {
             return false;
          }
       }
-      else if ( strcmp( option, "x" ) == 0 ) {
-         options->lang_specified = true;
-         if ( *args ) {
-            if ( strcmp( *args, "acs" ) == 0 ) {
-               options->lang = LANG_ACS;
-               ++args;
-            }
-            else if ( strcmp( *args, "acs95" ) == 0 ) {
-               options->lang = LANG_ACS95;
-               ++args;
-            }
-            else if ( strcmp( *args, "bcs" ) == 0 ) {
-               options->lang = LANG_BCS;
-               ++args;
-            }
-            else {
-               printf( "error: unsupported language: %s\n", *args );
-               return false;
-            }
+      else if ( (strcmp( option, "x" ) == 0) ) {
+         //if slade mode is disabled, read as normal
+         if(!options->slade_mode) {
+             options->lang_specified = true;
+             if ( *args ) {
+                if ( strcmp( *args, "acs" ) == 0 ) {
+                   options->lang = LANG_ACS;
+                   ++args;
+                }
+                else if ( strcmp( *args, "acs95" ) == 0 ) {
+                   options->lang = LANG_ACS95;
+                   ++args;
+                }
+                else if ( strcmp( *args, "bcs" ) == 0 ) {
+                   options->lang = LANG_BCS;
+                   ++args;
+                }
+                else {
+                   printf( "error: unsupported language: %s\n", *args );
+                   return false;
+                }
+             }
+             else {
+                printf( "error: missing language argument for %s option\n",
+                   option );
+                return false;
+             }
          }
-         else {
-            printf( "error: missing language argument for %s option\n",
-               option );
-            return false;
+         //otherwise, just discard
+         else
+         {
+             if ( *args ) //don't skip if language arg is missing
+                ++args;
          }
       }
       else if ( strcmp( option, "l" ) == 0 ) {
