@@ -1525,7 +1525,7 @@ special
 -47:IsTidUsed(int):bool,
 -48:Sqrt(int):int,
 -49:FixedSqrt(fixed):fixed,
--50:VectorLength(raw,raw):raw,
+-50:VectorLength(raw,raw):raw, //raw, as both int and fixed are acceptable
 -51:SetHudClipRect(int,int,int,int;int,bool):void,
 -52:SetHudWrapWidth(int):void,
 -53:SetCVar(str,int):bool,
@@ -1617,7 +1617,7 @@ special
 -134:SetGamemodeLimit(int,int):int,
 -135:SetPlayerClass(int,str,bool):int,
 -136:SetPlayerChasecam(int,bool):int,
--137:GetPlayerChasecam(int);int,
+-137:GetPlayerChasecam(int):int,
 -138:SetPlayerScore(int,int,int):int,
 -139:GetPlayerScore(int,int):int,
 -140:InDemoMode():int,
