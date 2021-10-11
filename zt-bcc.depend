@@ -221,3 +221,29 @@
 	<limits.h>
 	"phase.h"
 
+1633909968 source:d:\my_c_adventures\git_clones\zt-bcc\src\semantic\expr.c
+	<string.h>
+	"../parse/phase.h"
+	"../codegen/phase.h"
+	"phase.h"
+
+1633846313 source:d:\my_c_adventures\git_clones\zt-bcc\src\semantic\phase.c
+	<string.h>
+	"phase.h"
+
+1633846313 source:d:\my_c_adventures\git_clones\zt-bcc\src\semantic\stmt.c
+	<string.h>
+	"phase.h"
+
+1633846313 source:d:\my_c_adventures\git_clones\zt-bcc\src\semantic\type.c
+	<string.h>
+	"phase.h"
+
+1633846313 source:d:\my_c_adventures\git_clones\zt-bcc\src\task.c
+	<string.h>
+	<stdarg.h>
+	<time.h>
+	"task.h"
+
+1633844688 source:d:\my_c_adventures\git_clones\zt-bcc\src\version.c
+

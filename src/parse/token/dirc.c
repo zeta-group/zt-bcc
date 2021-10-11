@@ -117,10 +117,11 @@ static enum dirc identify_dirc( struct parse* parse ) {
       dirc = identify_named_dirc( iter.token->text );
       // To stay compatible with ACS, only execute the following directives
       // when inside the #if family of directives.
+      // zt-bcc: This rule no longer applies to BCS.
       switch ( dirc ) {
       case DIRC_DEFINE:
       case DIRC_INCLUDE:
-         if ( ! parse->ifdirc ) {
+         if ( (! parse->ifdirc) && (parse->lang != LANG_BCS) ) {
             dirc = DIRC_NONE;
          }
          break;
