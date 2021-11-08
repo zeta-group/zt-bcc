@@ -1008,7 +1008,7 @@ static void load_imported_lib_from_storage( struct parse* parse,
    }
    // Common initialization for cached and freshly-read libraries.
    lib->lang = p_determine_lang_from_file_path(
-      request->file->full_path.value );
+      request->file->full_path.value, parse->task->options->slade_mode );
    lib->imported = true;
    list_append( &parse->task->libraries, lib );
    // Read library from source file.

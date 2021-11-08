@@ -68,7 +68,7 @@ static void run_phase( struct parse* parse ) {
    struct library* lib = t_add_library( parse->task );
    lib->lang = ( parse->task->options->lang_specified ) ?
       parse->task->options->lang : p_determine_lang_from_file_path(
-      parse->task->options->source_file );
+      parse->task->options->source_file, parse->task->options->slade_mode );
    parse->lang = lib->lang;
    parse->lang_limits = t_get_lang_limits( lib->lang );
    t_create_builtins( parse->task, lib->lang );
@@ -90,7 +90,10 @@ static void run_phase( struct parse* parse ) {
    }
 }
 
-int p_determine_lang_from_file_path( const char* path ) {
+int p_determine_lang_from_file_path( const char* path, bool slade_mode ) {
+   if(slade_mode) //slightly overkill but who cares :^)
+      return LANG_BCS;
+
    const char* ext = "";
    for ( int i = 0; path[ i ]; ++i ) {
       if ( path[ i ] == '.' ) {
