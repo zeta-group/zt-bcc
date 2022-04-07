@@ -775,6 +775,10 @@ enum {
 /*
    AAPTR_GET_LINETARGET = 0x8000
 */
+   // [AK] Actor pointers used exclusively for GAMEEVENT_ACTOR_DAMAGED
+   AAPTR_DAMAGE_SOURCE = 0x10000000,
+   AAPTR_DAMAGE_INFLICTOR = 0x40000000,
+   AAPTR_DAMAGE_TARGET = 0x80000000
 };
 
 enum {
@@ -1184,7 +1188,11 @@ enum {
    GAMEEVENT_RETURNS,
    GAMEEVENT_ROUND_STARTS,
    GAMEEVENT_ROUND_ENDS,
-   GAMEEVENT_ROUND_ABORTED
+   GAMEEVENT_ROUND_ABORTED,
+   GAMEEVENT_CHAT,
+   GAMEEVENT_PLAYERCONNECT,
+   GAMEEVENT_ACTOR_SPAWNED,
+   GAMEEVENT_ACTOR_DAMAGED
 };
 
 enum : bool {
@@ -1200,6 +1208,39 @@ enum {
    TM_MONTH,
    TM_YEAR,
    TM_WEEKDAY
+};
+
+// [AK] For SetGamemodeLimit
+enum
+{
+	GAMELIMIT_FRAGS,
+	GAMELIMIT_TIME,
+	GAMELIMIT_POINTS,
+	GAMELIMIT_DUELS,
+	GAMELIMIT_WINS,
+	GAMELIMIT_WAVES
+};
+
+// [AK] For SetPlayerScore and GetPlayerScore
+enum
+{
+	SCORE_FRAGS,
+	SCORE_POINTS,
+	SCORE_WINS,
+	SCORE_DEATHS,
+	SCORE_KILLS,
+	SCORE_ITEMS,
+	SCORE_SECRETS
+};
+
+// [AK] For GetMapRotationInfo
+enum
+{
+	MAPROTATION_Name,
+	MAPROTATION_LumpName,
+	MAPROTATION_Used,
+	MAPROTATION_MinPlayers,
+	MAPROTATION_MaxPlayers
 };
 
 symb INT_MIN = -INT_MAX - 1;
@@ -1615,6 +1656,22 @@ special
 -129:Strftime(int,str;bool):str,
 -130:SetDeadSpectator(int,bool):bool,
 -131:SetActivatorToPlayer(int):bool,
+-132:SetCurrentGamemode(str):int,
+-133:GetCurrentGamemode():str,
+-134:SetGamemodeLimit(int,int):int,
+-135:SetPlayerClass(int,str,bool):int,
+-136:SetPlayerChasecam(int,bool):int,
+-137:GetPlayerChasecam(int):int,
+-138:SetPlayerScore(int,int,int):int,
+-139:GetPlayerScore(int,int):int,
+-140:InDemoMode():int,
+-144:ExecuteClientScript(int,int;int,int,int,int):int,
+-145:NamedExecuteClientScript(str,int;int,int,int,int):int,
+-146:SendNetworkString(int,str;int):int,
+-147:NamedSendNetworkString(str,str;int),
+-148:GetChatMessage(int,int):str,
+-149:GetMapRotationSize():int,
+-150:GetMapRotationInfo(int,int):int,
 
 // ZDoom/GZDoom.
 /*
