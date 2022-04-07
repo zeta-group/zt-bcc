@@ -775,6 +775,10 @@ enum {
 /*
    AAPTR_GET_LINETARGET = 0x8000
 */
+   // [AK] Actor pointers used exclusively for GAMEEVENT_ACTOR_DAMAGED
+   AAPTR_DAMAGE_SOURCE = 0x10000000,
+   AAPTR_DAMAGE_INFLICTOR = 0x40000000,
+   AAPTR_DAMAGE_TARGET = 0x80000000
 };
 
 enum {
@@ -1184,7 +1188,11 @@ enum {
    GAMEEVENT_RETURNS,
    GAMEEVENT_ROUND_STARTS,
    GAMEEVENT_ROUND_ENDS,
-   GAMEEVENT_ROUND_ABORTED
+   GAMEEVENT_ROUND_ABORTED,
+   GAMEEVENT_CHAT,
+   GAMEEVENT_PLAYERCONNECT,
+   GAMEEVENT_ACTOR_SPAWNED,
+   GAMEEVENT_ACTOR_DAMAGED
 };
 
 enum : bool {
@@ -1200,6 +1208,39 @@ enum {
    TM_MONTH,
    TM_YEAR,
    TM_WEEKDAY
+};
+
+// [AK] For SetGamemodeLimit
+enum
+{
+	GAMELIMIT_FRAGS,
+	GAMELIMIT_TIME,
+	GAMELIMIT_POINTS,
+	GAMELIMIT_DUELS,
+	GAMELIMIT_WINS,
+	GAMELIMIT_WAVES
+};
+
+// [AK] For SetPlayerScore and GetPlayerScore
+enum
+{
+	SCORE_FRAGS,
+	SCORE_POINTS,
+	SCORE_WINS,
+	SCORE_DEATHS,
+	SCORE_KILLS,
+	SCORE_ITEMS,
+	SCORE_SECRETS
+};
+
+// [AK] For GetMapRotationInfo
+enum
+{
+	MAPROTATION_Name,
+	MAPROTATION_LumpName,
+	MAPROTATION_Used,
+	MAPROTATION_MinPlayers,
+	MAPROTATION_MaxPlayers
 };
 
 enum { INT_MIN = -INT_MAX - 1 };
@@ -1225,7 +1266,7 @@ special
 11:Door_Open(int,int;int):int,
 12:Door_Raise(int,int,int;int):int,
 13:Door_LockedRaise(int,int,int,int;int):int,
-14:Door_Animated(int,int,int;int):int,
+14:Door_Animated(int,int,int,int):int,
 15:Autosave():int,
 16:Transfer_WallLight(int,int):int:0,
 17:Thing_Raise(int/*;int*/):int,
@@ -1291,7 +1332,7 @@ special
 77:TeleportGroup(int,int,int,int,int):int,
 78:TeleportInSector(int,int,int,int;int):int,
 79:Thing_SetConversation(int,int):int,
-80:Acs_Execute(int,int;int,int,int):int,
+80:Acs_Execute(int;int,int,int,int):int,
 81:Acs_Suspend(int,int):int,
 82:Acs_Terminate(int,int):int,
 83:Acs_LockedExecute(int,int,int,int,int):int,
@@ -1337,7 +1378,7 @@ special
 125:Thing_Move(int,int;int):int,
 127:Thing_SetSpecial(int,int,int,int,int):int,
 128:ThrustThingZ(int,int,int,int):int,
-129:UsePuzzleItem():int:0,
+129:UsePuzzleItem(int,int;int,int,int):int:0,
 130:Thing_Activate(int):int,
 131:Thing_Deactivate(int):int,
 132:Thing_Remove(int):int,
@@ -1349,17 +1390,22 @@ special
 138:Floor_Waggle(int,int,int,int,int):int,
 139:Thing_SpawnFacing(int,int;int,int):int,
 140:Sector_ChangeSound(int,int):int,
-145:Player_SetTeam(int):int,
-152:Team_Score(int,int):int,
-153:Team_GivePoints(int,int,int):int,
+145:Player_SetTeam(int;int):int,
+152:Team_Score(int;int):int,
+153:Team_GivePoints(int,int;int):int,
 154:Teleport_NoStop(int,int;int):int,
-/*
-157:SetGlobalFogParameter,
-158:Fs_Execute,
-*/
+
+// From zandronum/src/actionspecials.h:
+// GZDoom/Vavoom specials
+// Although ZDoom doesn't support them it's better to have them defined so that
+// WADs using them somewhere can at least be started without aborting due
+// to an error message.
+157:SetGlobalFogParameter(int,int):int,
+158:Fs_Execute(int;int,int,int):int,
 159:Sector_SetPlaneReflection(int,int,int):int,
 160:Sector_Set3dFloor(int,int,int,int,int):int:0,
 161:Sector_SetContents(int,int,int):int:0,
+
 168:Ceiling_CrushAndRaiseDist(int,int,int;int,int):int,
 169:Generic_Crusher2(int,int,int,int,int):int,
 170:Sector_SetCeilingScale2(int,int,int):int,
@@ -1418,7 +1464,7 @@ special
 223:Scroll_Floor(int,int,int,int):int,
 224:Scroll_Ceiling(int,int,int,int):int,
 225:Scroll_Texture_Offsets(int):int:0,
-226:Acs_ExecuteAlways(int,int;int,int,int):int,
+226:Acs_ExecuteAlways(int;int,int,int,int):int,
 227:PointPush_SetForce(int,int,int,int):int:0,
 228:Plat_RaiseAndStayTx0(int,int;int):int,
 229:Thing_SetGoal(int,int,int;int):int,
@@ -1446,7 +1492,7 @@ special
 251:FloorAndCeiling_LowerRaise(int,int,int;int):int,
 252:Ceiling_RaiseToNearest(int,int/*;int*/):int,
 253:Ceiling_LowerToLowest(int,int/*;int,int*/):int,
-254:Ceiling_LowerToFloor(int,int;int,int,int):int,
+254:Ceiling_LowerToFloor(int,int/*;int,int,int*/):int,
 255:Ceiling_CrushRaiseAndStaySilA(int,int,int,int;int):int,
 /*
 256:Floor_LowerToHighestEE,
@@ -1499,13 +1545,13 @@ special
 -20:SpawnSpotForced(str,int;int,int):int,
 -21:SpawnSpotFacingForced(str,int;int):int,
 -22:CheckActorProperty(int,int,raw):bool,
--23:SetActorVelocity(int,fixed,fixed,fixed,bool,bool):bool,
--24:SetUserVariable(int,str,raw):void,
--25:GetUserVariable(int,str),
+-23:SetActorVelocity(int,fixed,fixed,fixed,bool,bool):void,
+-24:SetUserVariable(int,str,raw):int,
+-25:GetUserVariable(int,str):raw,
 -26:Radius_Quake2(int,int,int,int,int,str):void,
 -27:CheckActorClass(int,str):bool,
--28:SetUserArray(int,str,int,raw):void,
--29:GetUserArray(int,str,int),
+-28:SetUserArray(int,str,int,raw):int,
+-29:GetUserArray(int,str,int):raw,
 -30:SoundSequenceOnActor(int,str):void,
 -31:SoundSequenceOnSector(int,str,int):void,
 -32:SoundSequenceOnPolyobj(int,str):void,
@@ -1513,7 +1559,7 @@ special
 -34:GetPolyobjY(int):fixed,
 -35:CheckSight(int,int,int):bool,
 -36:SpawnForced(str,fixed,fixed,fixed;int,int):int,
--37:AnnouncerSound(str,int):void,
+-37:AnnouncerSound(str,bool):void,
 -38:SetPointer(int,int;int,int):bool,
 -39:Acs_NamedExecute(str,int;raw,raw,raw):bool,
 -40:Acs_NamedSuspend(str,int):bool,
@@ -1526,7 +1572,7 @@ special
 -47:IsTidUsed(int):bool,
 -48:Sqrt(int):int,
 -49:FixedSqrt(fixed):fixed,
--50:VectorLength(int,int):int,
+-50:VectorLength(fixed,fixed):fixed,
 -51:SetHudClipRect(int,int,int,int;int/*,bool*/):void,
 -52:SetHudWrapWidth(int):void,
 -53:SetCVar(str,int):bool,
@@ -1549,7 +1595,7 @@ special
 -69:GetWeapon():str,
 -70:SoundVolume(int,int,fixed):void,
 -71:PlayActorSound(int,int;int,fixed,bool,fixed):void,
--72:SpawnDecal(int,str;int,fixed,int,int):int,
+-72:SpawnDecal(int,str;int,fixed,fixed,fixed):int,
 -73:CheckFont(str):bool,
 -74:DropItem(int,str;int,int):int,
 -75:CheckFlag(int,str):bool,
@@ -1615,6 +1661,22 @@ special
 -129:Strftime(int,str;bool):str,
 -130:SetDeadSpectator(int,bool):bool,
 -131:SetActivatorToPlayer(int):bool,
+-132:SetCurrentGamemode(str):bool,
+-133:GetCurrentGamemode():str,
+-134:SetGamemodeLimit(int,raw):int,
+-135:SetPlayerClass(int,str,bool):bool,
+-136:SetPlayerChasecam(int,bool):bool,
+-137:GetPlayerChasecam(int):bool,
+-138:SetPlayerScore(int,int,int):bool,
+-139:GetPlayerScore(int,int):int,
+-140:InDemoMode():bool,
+-144:ExecuteClientScript(int,int;int,int,int,int):int,
+-145:NamedExecuteClientScript(str,int;int,int,int,int):int,
+-146:SendNetworkString(int,str;int):int,
+-147:NamedSendNetworkString(str,str;int),
+-148:GetChatMessage(int,int;bool):str,
+-149:GetMapRotationSize():int,
+-150:GetMapRotationInfo(int,int):raw,
 
 // ZDoom/GZDoom.
 /*
