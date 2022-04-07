@@ -112,17 +112,13 @@ int main( int argc, char* argv[] ) {
 static bool check_slade_file ( void ) {
     FILE *slade_file;
     slade_file = fopen("slade_mode.txt", "r");
-    if(slade_file == 0)
-    {
-        fclose(slade_file);
-        return false;
-    }
-    else
-    {
+    if(slade_file)
+	{
         printf("SLADE mode on");
         fclose(slade_file);
         return true;
     }
+	return false;
 }
 
 static void init_options( struct options* options ) {
