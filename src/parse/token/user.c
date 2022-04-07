@@ -56,7 +56,7 @@ static void read_token_bcs( struct parse* parse ) {
       }
       break;
    case TK_HASH:
-      if ( parse->source_entry->line_beginning ) {
+      if ( p_is_beginning_of_line( parse ) ) {
          if ( p_read_dirc( parse ) ) {
             goto top;
          }
@@ -126,6 +126,7 @@ static void read_token_bcs( struct parse* parse ) {
          { "goto", TK_GOTO },
          { "if", TK_IF },
          { "int", TK_INT },
+         { "lengthof", TK_LENGTHOF },
          { "let", TK_LET },
          { "memcpy", TK_MEMCPY },
          { "namespace", TK_NAMESPACE },
@@ -143,6 +144,7 @@ static void read_token_bcs( struct parse* parse ) {
          { "struct", TK_STRUCT },
          { "suspend", TK_SUSPEND },
          { "switch", TK_SWITCH },
+         { "symb", TK_SYMB },
          { "terminate", TK_TERMINATE },
          { "true", TK_TRUE },
          { "typedef", TK_TYPEDEF },
@@ -385,7 +387,7 @@ void p_read_eoptiontk( struct parse* parse ) {
       }
       break;
    case TK_HASH:
-      if ( parse->source_entry->line_beginning ) {
+      if ( p_is_beginning_of_line( parse ) ) {
          p_read_dirc( parse );
       }
       break;

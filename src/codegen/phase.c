@@ -497,8 +497,7 @@ static void patch_value( struct codegen* codegen, struct value* value ) {
    case VALUE_EXPR:
       break;
    default:
-      UNREACHABLE();
-      c_bail( codegen );
+      C_UNREACHABLE( codegen );
    }
 }
 
@@ -557,8 +556,7 @@ static void sort_vars( struct codegen* codegen ) {
          list_append( &hidden_arrays, var );
       }
       else {
-         UNREACHABLE();
-         c_bail( codegen );
+         C_UNREACHABLE( codegen );
       }
    }
    list_merge( &codegen->vars, &arrays );
@@ -745,6 +743,13 @@ static void append_acs_strings( struct codegen* codegen ) {
       }
       string = string->next;
    }
+}
+
+void c_diag( struct codegen* codegen, int flags, ... ) {
+   va_list args;
+   va_start( args, flags );
+   t_diag_args( codegen->task, flags, &args );
+   va_end( args );
 }
 
 void c_bail( struct codegen* codegen ) {

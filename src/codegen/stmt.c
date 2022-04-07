@@ -113,6 +113,7 @@ static void write_block_item( struct codegen* codegen, struct node* node ) {
       write_assert( codegen,
          ( struct assert* ) node );
       break;
+   case NODE_CONSTANT:
    case NODE_ENUMERATION:
    case NODE_TYPE_ALIAS:
    case NODE_FUNC:
@@ -236,7 +237,7 @@ void c_write_stmt( struct codegen* codegen, struct node* node ) {
    case NODE_USING:
       break;
    default:
-      UNREACHABLE();
+      C_UNREACHABLE( codegen );
    }
 }
 

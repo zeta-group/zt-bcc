@@ -115,7 +115,7 @@ static void read_module_item( struct parse* parse ) {
    case LANG_ACS95:
       read_module_item_acs( parse );
       break;
-   default:
+   case LANG_BCS:
       switch ( parse->tk ) {
       case TK_HASH:
          read_pseudo_dirc( parse, false );
@@ -124,6 +124,8 @@ static void read_module_item( struct parse* parse ) {
          read_namespace_member( parse );
       }
       break;
+   default:
+      P_UNREACHABLE( parse );
    }
 }
 
@@ -197,10 +199,7 @@ static void read_namespace_qualifier( struct parse* parse,
 }
 
 static void read_namespace_name( struct parse* parse ) {
-   if ( parse->tk == TK_ID ||
-      // An unqualified, unnamed namespace does not do anything useful. Force
-      // an unqualified namespace to have a name.
-      ! ( parse->ns_fragment->strict || parse->ns_fragment->hidden ) ) {
+   if ( parse->tk == TK_ID ) {
       read_namespace_path( parse );
    }
    if ( parse->ns_fragment->path ) {
@@ -208,11 +207,30 @@ static void read_namespace_name( struct parse* parse ) {
       struct ns_path* path = parse->ns_fragment->path;
       while ( path ) {
          struct name* name = t_extend_name( ns->body, path->text );
-         if ( ! ( name->object &&
-            name->object->node.type == NODE_NAMESPACE ) ) {
+         if ( name->object ) {
+            // Object must be a namespace.
+            if ( name->object->node.type != NODE_NAMESPACE ) {
+               p_diag( parse, DIAG_INTERNAL | DIAG_ERR,
+                  "object not a namespace (%s:%d)", __FILE__, __LINE__ );
+               p_bail( parse );
+            }
+            // Separators must be consistent.
+            struct ns* parent_ns = ( struct ns* ) name->object;
+            if ( parent_ns->dot_separator != path->dot_separator ) {
+               p_diag( parse, DIAG_POS_ERR, &path->pos,
+                  "this namespace must be separated by `%s`, so it matches "
+                  "the initial declaration",
+                  parent_ns->dot_separator ? "." : "::" );
+               p_diag( parse, DIAG_POS | DIAG_NOTE, &parent_ns->object.pos,
+                  "initial declaration of this namespace found here" );
+               p_bail( parse );
+            }
+         }
+         else {
             struct ns* nested_ns = t_alloc_ns( name );
             nested_ns->object.pos = path->pos;
             nested_ns->parent = ns;
+            nested_ns->dot_separator = path->dot_separator;
             list_append( &parse->task->namespaces, nested_ns );
             nested_ns->object.next_scope = name->object;
             name->object = &nested_ns->object;
@@ -242,14 +260,17 @@ static void read_namespace_path( struct parse* parse ) {
    head->next = NULL;
    head->text = parse->tk_text;
    head->pos = parse->tk_pos;
+   head->dot_separator = false;
    p_read_tk( parse );
-   while ( parse->tk == TK_DOT ) {
+   enum tk separator = ( parse->tk == TK_DOT ) ? TK_DOT : TK_COLONCOLON;
+   while ( parse->tk == separator ) {
       p_read_tk( parse );
       p_test_tk( parse, TK_ID );
       struct ns_path* path = mem_alloc( sizeof( *head ) );
       path->next = NULL;
       path->text = parse->tk_text;
       path->pos = parse->tk_pos;
+      path->dot_separator = ( separator == TK_DOT );
       tail->next = path;
       tail = path;
       p_read_tk( parse );
@@ -286,8 +307,31 @@ static void read_namespace_member( struct parse* parse ) {
       p_read_tk( parse );
    }
    else {
-      p_diag( parse, DIAG_POS_ERR, &parse->tk_pos,
+      struct pos pos = parse->tk_pos;
+      p_diag( parse, DIAG_POS_ERR | DIAG_SYNTAX, &pos,
          "unexpected %s", p_present_token_temp( parse, parse->tk ) );
+      if ( parse->tk == TK_HASH ) {
+         p_diag( parse, DIAG_POS | DIAG_NOTE, &pos,
+            "ACS-style directives cannot appear inside a namespace block" );
+         // Directive-specific tip.
+         p_read_tk( parse );
+         enum tk dirc = determine_bcs_pseudo_dirc( parse );
+         switch ( dirc ) {
+         case TK_DEFINE:
+         case TK_LIBDEFINE:
+            p_diag( parse, DIAG_POS | DIAG_NOTE, &pos,
+               "to create a constant inside a namespace block, "
+               "you can use an enum or the preprocessor-based #define" );
+            break;
+         case TK_INCLUDE:
+            p_diag( parse, DIAG_POS | DIAG_NOTE, &pos,
+               "to #include inside a namespace block, you can use the "
+               "preprocessor-based #include" );
+            break;
+         default:
+            break;
+         }
+      }
       p_bail( parse );
    }
 }
@@ -435,9 +479,11 @@ static struct using_item* alloc_using_item( void ) {
 struct path* p_read_path( struct parse* parse ) {
    // Head of path.
    struct path* path = alloc_path( parse->tk_pos );
-   if ( parse->tk == TK_UPMOST ) {
+   if ( parse->tk == TK_UPMOST || parse->tk == TK_COLONCOLON ) {
       path->upmost = true;
-      p_read_tk( parse );
+      if ( parse->tk == TK_UPMOST ) {
+         p_read_tk( parse );
+      }
    }
    else if ( parse->tk == TK_NAMESPACE ) {
       path->current_ns = true;
@@ -448,14 +494,18 @@ struct path* p_read_path( struct parse* parse ) {
       path->text = parse->tk_text;
       p_read_tk( parse );
    }
+   // Separator of path components can be either `::` or `.`. The separator
+   // must be consistent throughout the whole path.
+   enum tk separator = ( parse->tk == TK_DOT ) ? TK_DOT : TK_COLONCOLON;
    // Tail of path.
    struct path* head = path;
    struct path* tail = head;
-   while ( parse->tk == TK_DOT && p_peek( parse ) == TK_ID ) {
+   while ( parse->tk == separator ) {
       p_read_tk( parse );
       p_test_tk( parse, TK_ID );
       path = alloc_path( parse->tk_pos );
       path->text = parse->tk_text;
+      path->dot_separator = ( separator == TK_DOT );
       tail->next = path;
       tail = path;
       p_read_tk( parse );
@@ -470,6 +520,7 @@ static struct path* alloc_path( struct pos pos ) {
    path->pos = pos;
    path->upmost = false;
    path->current_ns = false;
+   path->dot_separator = false;
    return path;
 }
 
@@ -484,7 +535,9 @@ bool p_peek_type_path( struct parse* parse ) {
       struct parsertk_iter iter;
       p_init_parsertk_iter( parse, &iter );
       p_next_tk( parse, &iter );
-      while ( iter.token->type == TK_DOT ) {
+      enum tk separator = ( iter.token->type == TK_DOT ) ? TK_DOT :
+         TK_COLONCOLON;
+      while ( iter.token->type == separator ) {
          p_next_tk( parse, &iter );
          if ( iter.token->type == TK_TYPENAME ) {
             return true;
@@ -513,7 +566,9 @@ bool p_peek_type_path_from_iter( struct parse* parse,
       iter->token->type == TK_UPMOST ||
       iter->token->type == TK_NAMESPACE ) {
       p_next_tk( parse, iter );
-      while ( iter->token->type == TK_DOT ) {
+      enum tk separator = ( iter->token->type == TK_DOT ) ? TK_DOT :
+         TK_COLONCOLON;
+      while ( iter->token->type == separator ) {
          p_next_tk( parse, iter );
          if ( iter->token->type == TK_TYPENAME ) {
             return true;
@@ -558,21 +613,26 @@ struct path* p_read_type_path( struct parse* parse ) {
       // Middle.
       struct path* head = path;
       struct path* tail = head;
-      while ( parse->tk == TK_DOT && p_peek( parse ) == TK_ID ) {
+      // Like for a normal path, the separator can be either `::` or `.`, and
+      // must be consistent throughout.
+      enum tk separator = ( parse->tk == TK_DOT ) ? TK_DOT : TK_COLONCOLON;
+      while ( parse->tk == separator && p_peek( parse ) == TK_ID ) {
          p_read_tk( parse );
          p_test_tk( parse, TK_ID );
          path = alloc_path( parse->tk_pos );
          path->text = parse->tk_text;
+         path->dot_separator = ( separator == TK_DOT );
          tail->next = path;
          tail = path;
          p_read_tk( parse );
       }
       // Tail.
-      p_test_tk( parse, TK_DOT );
+      p_test_tk( parse, separator );
       p_read_tk( parse );
       p_test_tk( parse, TK_TYPENAME );
       path = alloc_path( parse->tk_pos );
       path->text = parse->tk_text;
+      path->dot_separator = ( separator == TK_DOT );
       tail->next = path;
       p_read_tk( parse );
       return head;
@@ -615,8 +675,11 @@ static void read_pseudo_dirc( struct parse* parse, bool first_object ) {
          break;
       }
       break;
-   default:
+   case LANG_BCS:
       dirc = determine_bcs_pseudo_dirc( parse );
+      break;
+   default:
+      P_UNREACHABLE( parse );
    }
    // Read directive.
    switch ( dirc ) {
@@ -712,9 +775,23 @@ static void read_define( struct parse* parse ) {
    if ( parse->lang == LANG_BCS ) {
       switch ( parse->tk ) {
       case TK_TRUE:
+         p_read_tk( parse );
+         p_test_tk( parse, TK_LIT_DECIMAL );
+         if ( ! ( parse->tk_length == 1 && parse->tk_text[ 0 ] == '1' ) ) {
+            p_diag( parse, DIAG_SYNTAX | DIAG_POS_ERR, &parse->tk_pos,
+               "`true` constant must be defined as 1" );
+            p_bail( parse );
+         }
+         p_read_tk( parse );
+         return;
       case TK_FALSE:
          p_read_tk( parse );
          p_test_tk( parse, TK_LIT_DECIMAL );
+         if ( ! ( parse->tk_length == 1 && parse->tk_text[ 0 ] == '0' ) ) {
+            p_diag( parse, DIAG_SYNTAX | DIAG_POS_ERR, &parse->tk_pos,
+               "`false` constant must be defined as 0" );
+            p_bail( parse );
+         }
          p_read_tk( parse );
          return;
       default:
@@ -940,8 +1017,11 @@ static void perform_library_imports( struct parse* parse ) {
 }
 
 static void import_lib( struct parse* parse, struct import_dirc* dirc ) {
-   struct file_entry* file = p_find_module_file( parse,
-      parse->task->library_main, dirc->file_path );
+   // Use the source file of the import directive for relative include paths. 
+   struct include_history_entry* entry =
+      t_decode_include_history_entry( parse->task, dirc->pos.id );
+   struct file_entry* file = p_find_module_file( parse, entry->file,
+      dirc->file_path );
    if ( ! file ) {
       p_diag( parse, DIAG_POS_ERR, &dirc->pos,
          "library not found: %s", dirc->file_path );
@@ -1035,7 +1115,19 @@ static void read_imported_lib( struct parse* parse,
    read_module( parse );
    parse->lib = parse->task->library_main;
    // An imported library must have a #library directive.
-   if ( ! lib->header ) {
+   if ( lib->header ) {
+      // An imported library must have a different name from the importing
+      // library.
+      // TODO: Find out if library names need case-insensitive comparison.
+      if ( parse->lib->header &&
+         strcmp( parse->lib->name.value, lib->name.value ) == 0 ) {
+         p_diag( parse, DIAG_POS_ERR, &request->dirc->pos,
+            "imported library has the same name (\"%s\") as the current "
+            "library", lib->name.value );
+         p_bail( parse );
+      }
+   }
+   else {
       p_diag( parse, DIAG_POS_ERR, &request->dirc->pos,
          "imported library missing #library directive" );
       p_bail( parse );
@@ -1066,8 +1158,7 @@ static void append_imported_lib( struct parse* parse, struct import_dirc* dirc,
       list_append( &parse->lib->dynamic_acs, lib );
       break;
    default:
-      UNREACHABLE();
-      p_bail( parse );
+      P_UNREACHABLE( parse );
    }
    dirc->lib = lib;
 }
@@ -1170,7 +1261,7 @@ static void collect_private_objects( struct parse* parse, struct library* lib,
          }
          break;
       default:
-         UNREACHABLE();
+         P_UNREACHABLE( parse );
       }
       // Add object to the hidden list.
       if ( hidden ) {

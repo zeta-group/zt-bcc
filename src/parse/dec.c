@@ -56,8 +56,10 @@ struct special_reading {
 };
 
 static bool is_dec_bcs( struct parse* parse );
+static bool is_dec_and_not_conversion_call( struct parse* parse );
 static void read_local_var( struct parse* parse, struct dec* dec );
 static void read_dec( struct parse* parse, struct dec* dec );
+static void read_symbolic_constant( struct parse* parse, struct dec* dec );
 static void read_enum( struct parse* parse, struct dec* dec );
 static bool is_enum_def( struct parse* parse );
 static void read_enum_def( struct parse* parse, struct dec* dec );
@@ -100,6 +102,7 @@ static void read_struct_ref( struct parse* parse,
    struct ref_reading* reading );
 static bool is_array_ref( struct parse* parse );
 static void read_array_ref( struct parse* parse, struct ref_reading* reading );
+static bool is_func_ref( struct parse* parse );
 static void read_ref_func( struct parse* parse, struct ref_reading* reading );
 static void read_after_ref( struct parse* parse, struct dec* dec );
 static void read_var( struct parse* parse, struct dec* dec );
@@ -210,12 +213,12 @@ static bool is_dec_bcs( struct parse* parse ) {
       case TK_FIXED:
       case TK_BOOL:
       case TK_STR:
-         // Make sure it is not a conversion call.
-         return ( p_peek( parse ) != TK_PAREN_L );
+         return is_dec_and_not_conversion_call( parse );
       case TK_RAW:
       case TK_VOID:
       case TK_WORLD:
       case TK_GLOBAL:
+      case TK_SYMB:
       case TK_ENUM:
       case TK_STRUCT:
       case TK_FUNCTION:
@@ -233,6 +236,65 @@ static bool is_dec_bcs( struct parse* parse ) {
          return false;
       }
    }
+}
+
+static bool is_dec_and_not_conversion_call( struct parse* parse ) {
+   switch ( parse->tk ) {
+   case TK_INT:
+   case TK_FIXED:
+   case TK_BOOL:
+   case TK_STR:
+      // Syntax of function references and conversion calls is very similar, so
+      // extra (possibly infinite) peeking needs to be done to differentiate
+      // between the two. (I am not too happy about this situation. If I am to
+      // choose between the two, I would rather have the shorter function
+      // reference syntax (not needing the `function` keyword). Maybe deprecate
+      // conversion calls and provide some standard (inline?) functions to do
+      // conversions?)
+      if ( p_peek( parse ) == TK_PAREN_L ) {
+         struct parsertk_iter iter;
+         p_init_parsertk_iter( parse, &iter );
+         p_next_tk( parse, &iter );
+         p_next_tk( parse, &iter );
+         bool illformed = false;
+         while ( ! illformed ) {
+            switch ( iter.token->type ) {
+            case TK_RAW:
+            case TK_ENUM:
+            case TK_STRUCT:
+            case TK_TYPENAME:
+            case TK_VOID:
+            case TK_PAREN_R:
+               return true;
+            case TK_INT:
+            case TK_FIXED:
+            case TK_BOOL:
+            case TK_STR:
+               p_next_tk( parse, &iter );
+               if ( iter.token->type == TK_PAREN_L ) {
+                  p_next_tk( parse, &iter );
+               }
+               else {
+                  return true;
+               }
+               break;
+            case TK_ID:
+            case TK_UPMOST:
+            case TK_NAMESPACE:
+               return p_peek_type_path_from_iter( parse, &iter );
+            default:
+               illformed = true;
+            }
+         }
+      }
+      else {
+         return true;
+      }
+      break;
+   default:
+      break;
+   }
+   return false;
 }
 
 void p_init_dec( struct dec* dec ) {
@@ -316,6 +378,9 @@ static void read_dec( struct parse* parse, struct dec* dec ) {
       p_read_tk( parse );
    }
    switch ( parse->tk ) {
+   case TK_SYMB:
+      read_symbolic_constant( parse, dec );
+      break;
    case TK_ENUM:
       read_enum( parse, dec );
       break;
@@ -333,6 +398,32 @@ static void read_dec( struct parse* parse, struct dec* dec ) {
       p_diag( parse, DIAG_POS_ERR, &dec->pos,
          "only namespace-level objects can be declared private" );
       p_bail( parse );
+   }
+}
+
+static void read_symbolic_constant( struct parse* parse, struct dec* dec ) {
+   p_test_tk( parse, TK_SYMB );
+   p_read_tk( parse );
+   p_test_tk( parse, TK_ID );
+   struct constant* constant = t_alloc_constant();
+   constant->object.pos = parse->tk_pos;
+   constant->name = t_extend_name( parse->ns->body, parse->tk_text );
+   p_read_tk( parse );
+   p_test_tk( parse, TK_ASSIGN );
+   p_read_tk( parse );
+   struct expr_reading value;
+   p_init_expr_reading( &value, true, false, false, true );
+   p_read_expr( parse, &value );
+   constant->value_node = value.output_node;
+   constant->hidden = dec->private_visibility;
+   constant->force_local_scope = dec->force_local_scope;
+   if ( dec->vars ) {
+      list_append( dec->vars, constant );
+   }
+   else {
+      p_add_unresolved( parse, &constant->object );
+      list_append( &parse->ns_fragment->objects, constant );
+      list_append( &parse->lib->objects, constant );
    }
 }
 
@@ -592,7 +683,7 @@ static void read_struct_name( struct parse* parse, struct dec* dec,
 
 static void read_struct_body( struct parse* parse, struct dec* dec,
    struct structure* structure ) {
-   structure->body = t_extend_name( structure->name, "." );
+   structure->body = t_create_name();
    p_test_tk( parse, TK_BRACE_L );
    p_read_tk( parse );
    while ( true ) {
@@ -969,7 +1060,9 @@ static void read_ref( struct parse* parse, struct ref_reading* reading ) {
       break;
    }
    // Read array and function references.
-   while ( parse->tk == TK_BRACKET_L || parse->tk == TK_FUNCTION ) {
+   while ( parse->tk == TK_BRACKET_L || ( parse->tk == TK_PAREN_L ||
+      parse->tk == TK_FUNCTION ) ) {
+      // Array reference.
       if ( parse->tk == TK_BRACKET_L ) {
          if ( is_array_ref( parse ) ) {
             read_array_ref( parse, reading );
@@ -978,13 +1071,21 @@ static void read_ref( struct parse* parse, struct ref_reading* reading ) {
             break;
          }
       }
+      // Function reference.
       else {
-         switch ( parse->tk ) {
-         case TK_FUNCTION:
+         if ( parse->tk == TK_PAREN_L ) {
+            if ( is_func_ref( parse ) ) {
+               read_ref_func( parse, reading );
+            }
+            else {
+               break;
+            }
+         }
+         else if ( parse->tk == TK_FUNCTION ) {
             read_ref_func( parse, reading );
-            break;
-         default:
-            UNREACHABLE()
+         }
+         else {
+            P_UNREACHABLE( parse );
          }
       }
       if ( parse->tk == TK_BIT_AND ) {
@@ -1080,11 +1181,48 @@ static void read_array_ref( struct parse* parse,
    prepend_ref( reading, &part->ref );
 }
 
+static bool is_func_ref( struct parse* parse ) {
+   if ( parse->tk == TK_PAREN_L ) {
+      int depth = 1;
+      struct parsertk_iter iter;
+      p_init_parsertk_iter( parse, &iter );
+      while ( depth > 0 ) {
+         p_next_tk( parse, &iter );
+         switch ( iter.token->type ) {
+         case TK_PAREN_R:
+            --depth;
+            if ( depth == 0 ) {
+               p_next_tk( parse, &iter );
+               if ( iter.token->type == TK_BIT_AND ||
+                  iter.token->type == TK_QUESTION_MARK ) {
+                  return true;
+               }
+               else {
+                  return false;
+               }
+            }
+            break;
+         case TK_PAREN_L:
+            ++depth;
+            break;
+         case TK_LIB_END:
+         case TK_END:
+            return false;
+         default:
+            break;
+         }
+      }
+   }
+   return false;
+}
+
 static void read_ref_func( struct parse* parse, struct ref_reading* reading ) {
    struct ref_func* part = t_alloc_ref_func();
    part->ref.pos = parse->tk_pos;
-   p_test_tk( parse, TK_FUNCTION );
-   p_read_tk( parse );
+   // Read optional `function` keyword.
+   if ( parse->tk == TK_FUNCTION ) {
+      p_read_tk( parse );
+   }
    // Read parameter list.
    p_test_tk( parse, TK_PAREN_L );
    p_read_tk( parse );
@@ -1554,7 +1692,7 @@ static void add_var( struct parse* parse, struct dec* dec ) {
       }
    }
    else {
-      UNREACHABLE();
+      P_UNREACHABLE( parse );
    }
    if ( dec->var ) {
       dec->var->next_instance = var;
@@ -1807,6 +1945,7 @@ void p_read_paren_type( struct parse* parse, struct paren_reading* reading ) {
    }
    else {
       dec.area = DEC_TOP;
+      dec.private_visibility = true;
    }
    p_read_tk( parse );
    // Static.
@@ -1960,7 +2099,7 @@ static void read_func( struct parse* parse, struct dec* dec ) {
          func->hidden = true;
       }
    }
-   if ( dec->static_qual && (! dec->area == DEC_LOCAL) ) {
+   if ( dec->static_qual && ! ( dec->area == DEC_LOCAL ) ) {
       p_diag( parse, DIAG_POS_ERR, &dec->name_pos,
          "only a nested function can be static-qualified" );
       p_bail( parse );

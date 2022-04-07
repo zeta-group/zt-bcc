@@ -209,6 +209,16 @@ static void present_ref_element( struct initz_pres* pres, struct dim* dim,
    struct structure_member* member );
 static void refnotinit( struct semantic* semantic, struct initz_pres* pres,
    struct pos* pos );
+static void test_special_func( struct semantic* semantic, struct func* func );
+static bool test_special_func_param_list( struct semantic* semantic,
+   struct func* func );
+static void test_special_func_param( struct semantic* semantic,
+   struct func* func, struct param* param );
+static bool test_special_func_param_type( struct semantic* semantic,
+   struct func* func, struct param* param );
+static bool test_special_func_return_type( struct semantic* semantic,
+   struct func* func );
+static void test_func( struct semantic* semantic, struct func* func );
 static bool test_func_return_spec( struct semantic* semantic,
    struct func* func );
 static bool test_func_ref( struct semantic* semantic, struct func* func );
@@ -223,7 +233,6 @@ static void test_param( struct semantic* semantic,
    struct param_list_test* test, struct param* param );
 static bool test_param_spec( struct semantic* semantic,
    struct param_list_test* test, struct param* param );
-static bool test_param_name( struct semantic* semantic, struct param* param );
 static bool test_param_ref( struct semantic* semantic,
    struct param_list_test* test, struct param* param );
 static bool test_param_after_name( struct semantic* semantic,
@@ -265,6 +274,12 @@ static void bind_builtin_script_aliases( struct semantic* semantic,
    struct builtin_script_aliases* aliases );
 
 void s_test_constant( struct semantic* semantic, struct constant* constant ) {
+   // Name.
+   if ( semantic->in_localscope ) {
+      s_bind_local_name( semantic, constant->name, &constant->object,
+         constant->force_local_scope );
+   }
+   // Expression.
    struct expr_test expr;
    s_init_expr_test( &expr, true, false );
    s_test_expr( semantic, &expr, constant->value_node );
@@ -281,6 +296,7 @@ void s_test_constant( struct semantic* semantic, struct constant* constant ) {
          "expression not of primitive type" );
       s_bail( semantic );
    }
+   // Finish.
    constant->spec = constant->value_node->spec;
    constant->value = constant->value_node->value;
    constant->has_str = constant->value_node->has_str;
@@ -292,7 +308,7 @@ void s_test_enumeration( struct semantic* semantic,
    if ( enumeration->name ) {
       if ( semantic->in_localscope ) {
          s_bind_local_name( semantic, enumeration->name, &enumeration->object,
-            &enumeration->force_local_scope );
+            enumeration->force_local_scope );
       }
    }
    struct enumeration_test test = { -1 };
@@ -658,7 +674,7 @@ static void test_spec( struct semantic* semantic, struct spec_test* test ) {
          ! ( ( struct type_alias* ) test->type_alias )->hidden ) );
       break;
    default:
-      UNREACHABLE();
+      S_UNREACHABLE( semantic );
    }
    // Expand type alias.
    if ( test->spec == SPEC_NAME ) {
@@ -802,7 +818,7 @@ static void merge_ref( struct semantic* semantic, struct spec_test* test,
       }
    }
    else {
-      UNREACHABLE();
+      S_UNREACHABLE( semantic );
    }
 }
 
@@ -888,7 +904,7 @@ static bool test_ref( struct semantic* semantic, struct ref_test* test ) {
             ( struct ref_func* ) ref );
          break;
       default:
-         UNREACHABLE();
+         S_UNREACHABLE( semantic );
       }
       if ( ! resolved ) {
          return false;
@@ -1070,7 +1086,7 @@ static void refnotinit_var( struct semantic* semantic, struct var* var ) {
       init_initz_pres( &pres );
       struct str name;
       str_init( &name );
-      t_copy_name( var->name, false, &name );
+      t_copy_name( var->name, &name );
       str_append( &pres.output, name.value );
       str_deinit( &name );
       present_ref_element( &pres, var->dim, var->structure ?
@@ -1425,17 +1441,19 @@ static bool test_scalar_initz( struct semantic* semantic,
       }
       break;
    default:
-      UNREACHABLE();
-      s_bail( semantic );
+      S_UNREACHABLE( semantic );
    }
-   if ( s_is_ref_type( &test->initz_type ) && expr.var ) {
-      if ( ! expr.var->hidden ) {
-         s_diag( semantic, DIAG_POS_ERR, &value->expr->pos,
-            "non-private initializer (references only work with private map "
-            "variables)" );
-         s_bail( semantic );
+   // Note which variable is passed by reference.
+   if ( s_is_ref_type( &test->initz_type ) ) {
+      if ( expr.var ) {
+         if ( ! expr.var->hidden ) {
+            s_diag( semantic, DIAG_POS_ERR, &value->expr->pos,
+               "non-private initializer (references only work with private "
+               "map variables)" );
+            s_bail( semantic );
+         }
+         expr.var->addr_taken = true;
       }
-      expr.var->addr_taken = true;
       if ( expr.structure_member ) {
          expr.structure_member->addr_taken = true;
       }
@@ -1501,7 +1519,7 @@ static void present_parent( struct initz_pres* pres,
    else {
       struct str name;
       str_init( &name );
-      t_copy_name( test->var->name, false, &name );
+      t_copy_name( test->var->name, &name );
       str_append( &pres->output, name.value );
       str_deinit( &name );
    }
@@ -1517,7 +1535,7 @@ static void present_parent( struct initz_pres* pres,
       str_append( &pres->output, "." );
       struct str name;
       str_init( &name );
-      t_copy_name( test->member->name, false, &name );
+      t_copy_name( test->member->name, &name );
       str_append( &pres->output, name.value );
       str_deinit( &name );
       pres->member_last = true;
@@ -1541,7 +1559,7 @@ static void present_ref_element( struct initz_pres* pres, struct dim* dim,
       str_append( &pres->output, "." );
       struct str name;
       str_init( &name );
-      t_copy_name( member->name, false, &name );
+      t_copy_name( member->name, &name );
       str_append( &pres->output, name.value );
       str_deinit( &name );
       pres->member_last = true;
@@ -1931,6 +1949,112 @@ void s_test_foreach_var( struct semantic* semantic,
 }
 
 void s_test_func( struct semantic* semantic, struct func* func ) {
+   switch ( func->type ) {
+   // Other builtin functions (dedicated functions, format functions, and
+   // internal functions) are part of the compiler and assumed to be resolved,
+   // so they should not appear here.
+   case FUNC_ASPEC:
+   case FUNC_EXT:
+      test_special_func( semantic, func );
+      break;
+   case FUNC_USER:
+   case FUNC_ALIAS:
+      test_func( semantic, func );
+      break;
+   default:
+      S_UNREACHABLE( semantic );
+   }
+}
+
+// Tests the following function types:
+//  - FUNC_ASPEC (action-specials)
+//  - FUNC_EXT (extension functions)
+// Most of the testing done by this function are just sanity checks.
+static void test_special_func( struct semantic* semantic, struct func* func ) {
+   // Special functions should not appear inside scripts or functions. Special
+   // functions should not be hidden, although that could be added later.
+   S_ASSERT( semantic, semantic->in_localscope == false );
+   S_ASSERT( semantic, func->hidden == false );
+   func->object.resolved =
+      test_special_func_param_list( semantic, func ) &&
+      test_special_func_return_type( semantic, func );
+   // Special functions should be resolved in one go.
+   S_ASSERT( semantic, func->object.resolved == true );
+}
+
+static bool test_special_func_param_list( struct semantic* semantic,
+   struct func* func ) {
+   struct param* param = func->params;
+   while ( param ) {
+      test_special_func_param( semantic, func, param );
+      if ( ! param->object.resolved ) {
+         return false;
+      }
+      param = param->next;
+   }
+   // Action-specials can take up to 5 arguments.
+   // TODO: See if we need to do the same for extension functions.
+   enum { MAX_ASPEC_PARAMS = 5 };
+   if ( func->type == FUNC_ASPEC && func->max_param > MAX_ASPEC_PARAMS ) {
+      s_diag( semantic, DIAG_POS_ERR, &func->object.pos,
+         "too many parameters for action-special (maximum is %d)",
+         MAX_ASPEC_PARAMS );
+      s_bail( semantic );
+   }
+   return true;
+}
+
+static void test_special_func_param( struct semantic* semantic,
+   struct func* func, struct param* param ) {
+   S_ASSERT( semantic, param->name == NULL );
+   S_ASSERT( semantic, param->default_value == NULL );
+   param->object.resolved =
+      test_special_func_param_type( semantic, func, param );
+}
+
+static bool test_special_func_param_type( struct semantic* semantic,
+   struct func* func, struct param* param ) {
+   S_ASSERT( semantic, param->ref == NULL );
+   S_ASSERT( semantic, param->structure == NULL );
+   S_ASSERT( semantic, param->enumeration == NULL );
+   S_ASSERT( semantic, param->path == NULL );
+   switch ( param->spec ) {
+   case SPEC_RAW:
+   case SPEC_INT:
+   case SPEC_FIXED:
+   case SPEC_BOOL:
+   case SPEC_STR:
+      return true;
+   default:
+      S_UNREACHABLE( semantic );
+   }
+   return false;
+}
+
+static bool test_special_func_return_type( struct semantic* semantic,
+   struct func* func ) {
+   S_ASSERT( semantic, func->ref == NULL );
+   S_ASSERT( semantic, func->structure == NULL );
+   S_ASSERT( semantic, func->enumeration == NULL );
+   S_ASSERT( semantic, func->path == NULL );
+   switch ( func->return_spec ) {
+   case SPEC_RAW:
+   case SPEC_INT:
+   case SPEC_FIXED:
+   case SPEC_BOOL:
+   case SPEC_STR:
+   case SPEC_VOID:
+      return true;
+   default:
+      S_UNREACHABLE( semantic );
+   }
+   return false;
+}
+
+// Tests the following function types:
+//  - FUNC_USER (user-defined functions)
+//  - FUNC_ALIAS (function aliases created through typedef)
+static void test_func( struct semantic* semantic, struct func* func ) {
    func->object.resolved =
       test_func_return_spec( semantic, func ) &&
       test_func_ref( semantic, func ) &&
@@ -2007,12 +2131,10 @@ static bool test_func_name( struct semantic* semantic, struct func* func ) {
 
 static bool test_func_after_name( struct semantic* semantic,
    struct func* func ) {
-   s_add_scope( semantic, true );
    struct param_list_test param_test;
    init_param_list_test( &param_test, func, NULL,
       ( semantic->depth == 1 && ! func->hidden ) );
    bool resolved = test_param_list( semantic, &param_test );
-   s_pop_scope( semantic );
    if ( resolved && func->external ) {
       resolved = test_external_func( semantic, func );
    }
@@ -2035,14 +2157,23 @@ static void init_param_list_test( struct param_list_test* test,
 
 static bool test_param_list( struct semantic* semantic,
    struct param_list_test* test ) {
+   // Parameter names must be unique.
+   s_add_scope( semantic, true );
    struct param* param = test->params;
    while ( param ) {
-      if ( param->object.resolved ) {
-         if ( param->name ) {
-            s_bind_local_name( semantic, param->name, &param->object, true );
-         }
+      if ( param->name ) {
+         s_bind_local_name( semantic, param->name, &param->object, true );
       }
-      else {
+      param = param->next;
+   }
+   s_pop_scope( semantic );
+   // Test parameters.
+   param = test->params;
+   while ( param ) {
+      // Only test a parameter if it has not already been tested. Note that
+      // previous parameters are not visible to following parameters, so we do
+      // not bind the names of previous parameters. 
+      if ( ! param->object.resolved ) {
          test_param( semantic, test, param );
          if ( ! param->object.resolved ) {
             return false;
@@ -2050,14 +2181,6 @@ static bool test_param_list( struct semantic* semantic,
       }
       test->prev_param = param;
       param = param->next;
-   }
-   // Action-specials can take up to 5 arguments.
-   enum { MAX_ASPEC_PARAMS = 5 };
-   if ( test->func && test->func->type == FUNC_ASPEC &&
-      test->func->max_param > MAX_ASPEC_PARAMS ) {
-      s_diag( semantic, DIAG_POS_ERR, &test->func->object.pos,
-         "action-special has more than %d parameters", MAX_ASPEC_PARAMS );
-      s_bail( semantic );
    }
    return true;
 }
@@ -2067,7 +2190,6 @@ static void test_param( struct semantic* semantic,
    param->object.resolved =
       test_param_spec( semantic, test, param ) &&
       test_param_ref( semantic, test, param ) &&
-      test_param_name( semantic, param ) &&
       test_param_after_name( semantic, test, param );
    if ( param->object.resolved ) {
       calc_param_size( param );
@@ -2119,26 +2241,8 @@ static bool test_param_ref( struct semantic* semantic,
    return test_ref( semantic, &ref_test );
 }
 
-static bool test_param_name( struct semantic* semantic, struct param* param ) {
-   if ( param->name ) {
-      s_bind_local_name( semantic, param->name, &param->object, true );
-   }
-   return true;
-}
-
 static bool test_param_after_name( struct semantic* semantic,
    struct param_list_test* test, struct param* param ) {
-   // Builtin functions accept only primitive arguments.
-   if ( test->func && test->func->type != FUNC_USER ) {
-      struct type_info type;
-      s_init_type_info( &type, param->ref, param->structure,
-         param->enumeration, NULL, param->spec, STORAGE_LOCAL );
-      if ( ! s_is_value_type( &type ) ) {
-         s_diag( semantic, DIAG_POS_ERR, &param->object.pos,
-            "parameter of builtin function of non-primitive type" );
-         s_bail( semantic );
-      }
-   }
    if ( param->default_value ) {
       if ( ! param->default_value_tested &&
          ! test_param_default_value( semantic, test, param ) ) {
@@ -2186,14 +2290,17 @@ static bool test_param_default_value( struct semantic* semantic,
          &expr.type, &param->default_value->pos );
       s_bail( semantic );
    }
-   if ( s_is_ref_type( &expr.type ) && expr.var ) {
-      if ( ! expr.var->hidden ) {
-         s_diag( semantic, DIAG_POS_ERR, &param->default_value->pos,
-            "non-private default argument (references only work with private "
-            "map variables)" );
-         s_bail( semantic );
+   // Note which variable is passed by reference.
+   if ( s_is_ref_type( &expr.type ) ) {
+      if ( expr.var ) {
+         if ( ! expr.var->hidden ) {
+            s_diag( semantic, DIAG_POS_ERR, &param->default_value->pos,
+               "non-private default argument (references only work with "
+               "private map variables)" );
+            s_bail( semantic );
+         }
+         expr.var->addr_taken = true;
       }
-      expr.var->addr_taken = true;
       if ( expr.structure_member ) {
          expr.structure_member->addr_taken = true;
       }
@@ -2239,6 +2346,16 @@ static bool test_external_func( struct semantic* semantic,
    }
    bool resolved = false;
    struct func* other_func = ( struct func* ) func->name->object;
+   // External function declarations only apply to user-defined functions.
+   if ( other_func->type != FUNC_USER ) {
+      s_diag( semantic, DIAG_POS_ERR, &func->object.pos,
+         "external function declaration refers to a function that is not "
+         "user-defined" );
+      s_diag( semantic, DIAG_POS | DIAG_NOTE, &other_func->object.pos,
+         "the target function (the function the external function declaration "
+         "is referring to) is found here" );
+      s_bail( semantic );
+   }
    if ( func == other_func ) {
       resolved = true;
    }

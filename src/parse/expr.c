@@ -54,6 +54,10 @@ static bool peek_format_cast( struct parse* parse );
 static void init_array_field( struct array_field* field );
 static void read_array_field( struct parse* parse, struct array_field* field );
 static void read_id( struct parse* parse, struct expr_reading* reading );
+static void read_qualified_name_usage( struct parse* parse,
+   struct expr_reading* reading );
+static void read_name_usage( struct parse* parse,
+   struct expr_reading* reading );
 static void read_literal( struct parse* parse, struct expr_reading* reading );
 static void read_string( struct parse* parse, struct expr_reading* reading );
 static void read_boolean( struct parse* parse, struct expr_reading* reading );
@@ -68,6 +72,7 @@ static void read_strcpy( struct parse* parse, struct expr_reading* reading );
 static void read_strcpy_call( struct parse* parse,
    struct strcpy_reading* reading );
 static void read_memcpy( struct parse* parse, struct expr_reading* reading );
+static void read_lengthof( struct parse* parse, struct expr_reading* reading );
 static void read_paren( struct parse* parse, struct expr_reading* reading );
 static void read_func_literal( struct parse* parse,
    struct expr_reading* reading, struct paren_reading* paren );
@@ -374,7 +379,7 @@ static void read_op( struct parse* parse, struct expr_reading* reading ) {
    assign->lside = reading->node;
    assign->rside = NULL;
    assign->pos = parse->tk_pos;
-   assign->spec = SPEC_NONE;
+   assign->lside_type = ASSIGNLSIDE_NONE;
    p_read_tk( parse );
    switch ( parse->lang ) {
    case LANG_ACS95:
@@ -567,6 +572,9 @@ static void read_primary( struct parse* parse, struct expr_reading* reading ) {
    case TK_NULL:
       read_null( parse, reading );
       break;
+   case TK_COLONCOLON:
+      read_qualified_name_usage( parse, reading );
+      break;
    case TK_UPMOST:
       read_upmost( parse, reading );
       break;
@@ -578,6 +586,9 @@ static void read_primary( struct parse* parse, struct expr_reading* reading ) {
       break;
    case TK_MEMCPY:
       read_memcpy( parse, reading );
+      break;
+   case TK_LENGTHOF:
+      read_lengthof( parse, reading );
       break;
    case TK_INT:
    case TK_FIXED:
@@ -601,6 +612,26 @@ static void read_primary( struct parse* parse, struct expr_reading* reading ) {
 }
 
 static void read_id( struct parse* parse, struct expr_reading* reading ) {
+   if ( p_peek( parse ) == TK_COLONCOLON ) {
+      read_qualified_name_usage( parse, reading );
+   }
+   else {
+      read_name_usage( parse, reading );
+   }
+}
+
+static void read_qualified_name_usage( struct parse* parse,
+   struct expr_reading* reading ) {
+   struct qualified_name_usage* usage = mem_alloc( sizeof( *usage ) );
+   usage->node.type = NODE_QUALIFIEDNAMEUSAGE;
+   usage->path = p_read_path( parse );
+   usage->object = NULL;
+   reading->node = &usage->node;
+}
+
+static void read_name_usage( struct parse* parse,
+   struct expr_reading* reading ) {
+   p_test_tk( parse, TK_ID );
    struct name_usage* usage = mem_slot_alloc( sizeof( *usage ) );
    usage->node.type = NODE_NAME_USAGE;
    usage->text = parse->tk_text;
@@ -664,18 +695,28 @@ static void read_null( struct parse* parse, struct expr_reading* reading ) {
 }
 
 static void read_upmost( struct parse* parse, struct expr_reading* reading ) {
-   static struct node node = { NODE_UPMOST };
-   reading->node = &node;
-   p_test_tk( parse, TK_UPMOST );
-   p_read_tk( parse );
+   if ( p_peek( parse ) == TK_COLONCOLON ) {
+      read_qualified_name_usage( parse, reading );
+   }
+   else {
+      p_test_tk( parse, TK_UPMOST );
+      static struct node node = { NODE_UPMOST };
+      reading->node = &node;
+      p_read_tk( parse );
+   }
 }
 
 static void read_current_namespace( struct parse* parse,
    struct expr_reading* reading ) {
-   static struct node node = { NODE_CURRENTNAMESPACE };
-   reading->node = &node;
-   p_test_tk( parse, TK_NAMESPACE );
-   p_read_tk( parse );
+   if ( p_peek( parse ) == TK_COLONCOLON ) {
+      read_qualified_name_usage( parse, reading );
+   }
+   else {
+      p_test_tk( parse, TK_NAMESPACE );
+      static struct node node = { NODE_CURRENTNAMESPACE };
+      reading->node = &node;
+      p_read_tk( parse );
+   }
 }
 
 int p_extract_literal_value( struct parse* parse ) {
@@ -1252,6 +1293,25 @@ static void read_memcpy( struct parse* parse, struct expr_reading* reading ) {
    call->source_offset = call_r.offset;
    call->type = MEMCPY_ARRAY;
    call->array_cast = call_r.array_cast;
+   reading->node = &call->node;
+}
+
+static void read_lengthof( struct parse* parse,
+   struct expr_reading* reading ) {
+   p_test_tk( parse, TK_LENGTHOF );
+   p_read_tk( parse );
+   struct lengthof* call = mem_alloc( sizeof( *call ) );
+   call->node.type = NODE_LENGTHOF;
+   call->operand = NULL;
+   call->value = 0;
+   p_test_tk( parse, TK_PAREN_L );
+   p_read_tk( parse );
+   struct expr_reading operand;
+   p_init_expr_reading( &operand, false, false, false, true );
+   p_read_expr( parse, &operand );
+   call->operand = operand.output_node;
+   p_test_tk( parse, TK_PAREN_R );
+   p_read_tk( parse );
    reading->node = &call->node;
 }
 

@@ -177,6 +177,9 @@ enum tk {
    TK_FUNCTIONNAME,
    TK_SCRIPTNAME,
    TK_AT,
+   TK_COLONCOLON,
+   TK_LENGTHOF,
+   TK_SYMB,
 
    TK_TOTAL,
 
@@ -271,33 +274,6 @@ struct parsertk_iter {
 struct streamtk_iter {
    struct queue_entry* entry;
    struct token* token;
-};
-
-enum { SOURCE_BUFFER_SIZE = 16384 };
-
-struct source {
-   struct file_entry* file;
-   FILE* fh;
-   struct source* prev;
-   int file_entry_id;
-   int line;
-   int column;
-   bool load_once;
-   char ch;
-   // Plus one for the null character.
-   char buffer[ SOURCE_BUFFER_SIZE + 2 ];
-   int buffer_pos;
-};
-
-struct source_entry {
-   struct source_entry* prev;
-   struct source* source;
-   struct macro_expan* macro_expan;
-   struct token_queue peeked;
-   enum tk prev_tk;
-   bool main;
-   bool imported;
-   bool line_beginning;
 };
 
 struct dec {
@@ -450,6 +426,13 @@ struct parse {
    } wadauthor;
 };
 
+#define P_INTERNAL_ERR( parse, ... ) \
+   p_diag( parse, DIAG_FILENAME | DIAG_LINE | DIAG_INTERNAL | DIAG_ERR, \
+      __FILE__, __LINE__, __VA_ARGS__ )
+#define P_UNREACHABLE( parse ) \
+   P_INTERNAL_ERR( parse, "unreachable code" ); \
+   p_bail( parse )
+
 void p_init( struct parse* parse, struct task* task, struct cache* cache );
 void p_init_stream( struct parse* parse );
 void p_run( struct parse* parse );
@@ -460,7 +443,7 @@ void p_load_main_source( struct parse* parse );
 void p_load_imported_lib_source( struct parse* parse, struct import_dirc* dirc,
    struct file_entry* file );
 struct file_entry* p_find_module_file( struct parse* parse,
-   struct library* importing_module, const char* path );
+   struct file_entry* offset_file, const char* path );
 void p_read_tk( struct parse* parse );
 void p_read_preptk( struct parse* parse );
 void p_read_expanpreptk( struct parse* parse );
@@ -546,6 +529,7 @@ void p_read_func_body( struct parse* parse, struct func* func );
 int p_determine_lang_from_file_path( const char* path, bool slade_mode );
 bool p_is_macro_defined( struct parse* parse, const char* name );
 void p_init_token( struct token* token );
+bool p_source_has_data( struct parse* parse );
 void p_pop_source( struct parse* parse );
 void p_create_cmdline_library_links( struct parse* parse );
 void p_read_local_using( struct parse* parse, struct list* output );
@@ -557,5 +541,9 @@ void p_read_paren_type( struct parse* parse, struct paren_reading* reading );
 void p_add_altern_file_name( struct parse* parse, const char* name, int line );
 bool p_peek_type_path_from_iter( struct parse* parse,
    struct parsertk_iter* iter );
+void p_update_line_beginning_status( struct parse* parse );
+bool p_is_beginning_of_line( struct parse* parse );
+void p_decorate_token( struct token* token, struct str* string,
+   bool expand_horzspace );
 
 #endif

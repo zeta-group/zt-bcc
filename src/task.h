@@ -29,19 +29,37 @@ struct file_query {
    bool success;
 };
 
+// Nonexistent files.
 enum {
    INTERNALFILE_NONE,
+   // Refers to the internals of the compiler.
    INTERNALFILE_COMPILER,
+   // Refers to the command-line.
    INTERNALFILE_COMMANDLINE,
    INTERNALFILE_TOTAL,
 };
 
+// Keeps track of the include history of source files. Also used for
+// alternative file names.
 struct include_history_entry {
+   // The parent source file that #includes/#imports the current file. Walking
+   // up the chain gives us the include history for a file.
    struct include_history_entry* parent;
-   const char* altern_name; // Alternative file name.
-   int file_entry_id;
+   // `file` is the file that was included or read. If an alternative name is
+   // provided by the user, this field still points to a file. But this field
+   // is NULL for an internal file.
+   struct file_entry* file;
+   // Alternative file name. Instead of using the file path of the source
+   // file (`file`), this provides an alternative file path. It can be set by
+   // the user via the #line preprocessor directive. Also used for internal
+   // file names.
+   const char* altern_name;
+   // ID of the include history entry.
    int id;
+   // The line number of where the file inclusion occurs. For the source file
+   // of the main module, the line number is 0.
    int line;
+   // States whether the file is #imported. If false, it means #included.
    bool imported;
 };
 
@@ -52,9 +70,12 @@ struct text_buffer {
    char* left;
 };
 
+// File position in a source file.
 struct pos {
    int line;
    int column;
+   // ID of an include history entry. The include history entry has the file
+   // path and parent files.
    int id;
 };
 
@@ -126,6 +147,9 @@ struct node {
       NODE_COMPOUNDLITERAL,
       NODE_MAGICID,
       NODE_BUILDMSG,
+      // 60
+      NODE_QUALIFIEDNAMEUSAGE,
+      NODE_LENGTHOF,
    } type;
 };
 
@@ -153,12 +177,19 @@ struct name_usage {
    struct pos pos;
 };
 
+struct qualified_name_usage {
+   struct node node;
+   struct path* path;
+   struct node* object;
+};
+
 struct path {
    struct path* next;
    const char* text;
    struct pos pos;
    bool upmost;
    bool current_ns;
+   bool dot_separator;
 };
 
 enum {
@@ -185,6 +216,7 @@ struct enumeration {
    struct name* name;
    struct name* body;
    int base_type;
+   int num_enumerators;
    bool hidden;
    bool semicolon;
    bool force_local_scope;
@@ -428,7 +460,14 @@ struct assign {
    struct node* lside;
    struct node* rside;
    struct pos pos;
-   int spec;
+   enum {
+      ASSIGNLSIDE_NONE,
+      ASSIGNLSIDE_PRIMITIVE,
+      ASSIGNLSIDE_PRIMITIVESTR,
+      ASSIGNLSIDE_PRIMITIVEFIXED,
+      ASSIGNLSIDE_REF,
+      ASSIGNLSIDE_REFARRAY,
+   } lside_type;
 };
 
 struct conditional {
@@ -506,6 +545,12 @@ struct memcpy_call {
       MEMCPY_STRUCT,
    } type;
    bool array_cast;
+};
+
+struct lengthof {
+   struct node node;
+   struct expr* operand;
+   int value;
 };
 
 struct conversion {
@@ -914,7 +959,6 @@ struct func_intern {
       INTERN_FUNC_STANDALONE_TOTAL,
 
       INTERN_FUNC_STR_LENGTH = INTERN_FUNC_STANDALONE_TOTAL,
-      INTERN_FUNC_STR_AT,
       INTERN_FUNC_ARRAY_LENGTH,
       INTERN_FUNC_MEMBER_TOTAL
    } id;
@@ -1040,6 +1084,7 @@ struct constant {
    int value;
    bool hidden;
    bool has_str;
+   bool force_local_scope;
 };
 
 struct indexed_string {
@@ -1120,6 +1165,7 @@ struct ns {
    struct ns_link* links;
    struct list fragments;
    bool hidden;
+   bool dot_separator;
 };
 
 struct ns_link {
@@ -1150,6 +1196,7 @@ struct ns_path {
    struct ns_path* next;
    const char* text;
    struct pos pos;
+   bool dot_separator;
 };
 
 struct using_dirc {
@@ -1279,7 +1326,7 @@ struct task {
    struct list structures;
 };
 
-#define DIAG_NONE 0
+#define DIAG_NONE 0x0
 #define DIAG_FILE 0x1
 #define DIAG_LINE 0x2
 #define DIAG_COLUMN 0x4
@@ -1288,13 +1335,20 @@ struct task {
 #define DIAG_SYNTAX 0x20
 #define DIAG_INTERNAL 0x40
 #define DIAG_NOTE 0x80
+#define DIAG_FILENAME 0x100
 #define DIAG_POS DIAG_FILE | DIAG_LINE | DIAG_COLUMN
 #define DIAG_POS_ERR DIAG_POS | DIAG_ERR
 
+#define NAMESEPARATOR_COLONCOLON "::"
+#define NAMESEPARATOR_DOT "."
+#define NAMESEPARATOR_INTERNAL NAMESEPARATOR_DOT 
+
 void t_init( struct task* task, struct options* options, jmp_buf* bail,
    struct str* compiler_dir );
-void t_copy_name( struct name*, bool full, struct str* buffer );
-int t_full_name_length( struct name* );
+void t_copy_name( struct name* start, struct str* str );
+void t_copy_full_name( struct name* start, const char* separator,
+   struct str* str );
+int t_full_name_length( struct name* name, const char* separator );
 void t_print_name( struct name* );
 void t_diag( struct task*, int flags, ... );
 void t_diag_args( struct task* task, int flags, va_list* args );
@@ -1352,11 +1406,12 @@ struct type_alias* t_alloc_type_alias( void );
 char* t_intern_text( struct task* task, const char* value, int length );
 struct text_buffer* t_get_text_buffer( struct task* task, int min_free_size );
 void t_update_err_file_dir( struct task* task, const char* path );
-struct include_history_entry* t_alloc_include_history_entry(
+struct include_history_entry* t_reserve_include_history_entry(
    struct task* task );
 struct include_history_entry* t_decode_include_history_entry(
    struct task* task, int id );
 const char* t_get_lang_lib_dir( struct task* task, int lang );
 struct script* t_alloc_script( void );
+struct ns* t_find_ns_of_object( struct task* task, struct object* object );
 
 #endif

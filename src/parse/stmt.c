@@ -57,7 +57,7 @@ static struct assert* alloc_assert( struct pos* pos );
 void t_print_name( struct name* name ) {
    struct str str;
    str_init( &str );
-   t_copy_name( name, true, &str );
+   t_copy_full_name( name, NAMESEPARATOR_INTERNAL, &str );
    printf( "%s\n", str.value );
    str_deinit( &str );
 }
@@ -198,8 +198,11 @@ static void read_stmt( struct parse* parse, struct stmt_reading* reading,
          break;
       }
       break;
-   default:
+   case LANG_BCS:
       stmt = parse->tk;
+      break;
+   default:
+      P_UNREACHABLE( parse );
    }
    // Read statement.
    switch ( stmt ) {
