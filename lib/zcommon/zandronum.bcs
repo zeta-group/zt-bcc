@@ -1195,21 +1195,6 @@ enum {
    GAMEEVENT_ACTOR_DAMAGED
 };
 
-enum : bool {
-   DB_ORDER_ASC = false,
-   DB_ORDER_DESC = true
-};
-
-enum {
-   TM_SECOND,
-   TM_MINUTE,
-   TM_HOUR,
-   TM_DAY,
-   TM_MONTH,
-   TM_YEAR,
-   TM_WEEKDAY
-};
-
 // [AK] For SetGamemodeLimit
 enum
 {
@@ -1241,6 +1226,21 @@ enum
 	MAPROTATION_Used,
 	MAPROTATION_MinPlayers,
 	MAPROTATION_MaxPlayers
+};
+
+enum : bool {
+   DB_ORDER_ASC = false,
+   DB_ORDER_DESC = true
+};
+
+enum {
+   TM_SECOND,
+   TM_MINUTE,
+   TM_HOUR,
+   TM_DAY,
+   TM_MONTH,
+   TM_YEAR,
+   TM_WEEKDAY
 };
 
 symb INT_MIN = -INT_MAX - 1;
@@ -1710,9 +1710,7 @@ special
 
 // ZDaemon.
 -19620:GetTeamScore(int):int,
-/*
--19621:SetTeamScore,
-*/
+-19621:SetTeamScore(int,int):void,
 
 // End.
 -100000:__EndOfList__(10);
