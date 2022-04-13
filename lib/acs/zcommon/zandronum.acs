@@ -686,6 +686,9 @@
 /*
 #define AAPTR_GET_LINETARGET 0x8000
 */
+#define AAPTR_DAMAGE_SOURCE 0x10000000
+#define AAPTR_DAMAGE_INFLICTOR 0x40000000
+#define AAPTR_DAMAGE_TARGET 0x80000000
 
 #define PTROP_UNSAFETARGET 0x1
 #define PTROP_UNSAFEMASTER 0x2
@@ -1035,6 +1038,27 @@
 #define GAMEEVENT_ROUND_ENDS 6
 #define GAMEEVENT_ROUND_ABORTED 7
 
+#define GAMELIMIT_FRAGS 0
+#define GAMELIMIT_TIME 1
+#define GAMELIMIT_POINTS 2
+#define GAMELIMIT_DUELS 3
+#define GAMELIMIT_WINS 4
+#define GAMELIMIT_WAVES 5
+
+#define SCORE_FRAGS 0
+#define SCORE_POINTS 1
+#define SCORE_WINS 2
+#define SCORE_DEATHS 3
+#define SCORE_KILLS 4
+#define SCORE_ITEMS 5
+#define SCORE_SECRETS 6
+
+#define MAPROTATION_Name 0
+#define MAPROTATION_LumpName 1
+#define MAPROTATION_Used 2
+#define MAPROTATION_MinPlayers 3
+#define MAPROTATION_MaxPlayers 4
+
 #define DB_ORDER_ASC 0
 #define DB_ORDER_DESC 1
 
@@ -1055,15 +1079,11 @@
 special
 
 // Action specials
-/*
-1:Polyobj_StartLine,
-*/
+1:Polyobj_StartLine(4),
 2:Polyobj_RotateLeft(3),
 3:Polyobj_RotateRight(3),
 4:Polyobj_Move(4),
-/*
-5:Polyobj_ExplicitLine,
-*/
+5:Polyobj_ExplicitLine(5),
 6:Polyobj_MoveTimes8(4),
 7:Polyobj_DoorSwing(4),
 8:Polyobj_DoorSlide(5),
@@ -1074,9 +1094,7 @@ special
 13:Door_LockedRaise(4,5),
 14:Door_Animated(3,4),
 15:Autosave(0),
-/*
-16:Transfer_WallLight,
-*/
+16:Transfer_WallLight(2),
 17:Thing_Raise(1/*,2*/),
 18:StartConversation(1,2),
 19:Thing_Stop(1),
@@ -1108,23 +1126,17 @@ special
 45:Ceiling_CrushRaiseAndStay(3,4),
 46:Floor_CrushStop(1),
 47:Ceiling_MoveToValue(3,4/*,5*/),
-/*
-48:Sector_Attach3dMidTex,
-*/
+48:Sector_Attach3dMidTex(3),
 49:GlassBreak(0,1/*,2*/),
-/*
-50:ExtraFloor_LightOnly,
-*/
+50:ExtraFloor_LightOnly(2),
 51:Sector_SetLink(4),
 52:Scroll_Wall(5),
 53:Line_SetTextureOffset(5),
 54:Sector_ChangeFlags(3),
 55:Line_SetBlocking(3),
 56:Line_SetTextureScale(5),
-/*
-57:Sector_SetPortal,
-58:Sector_CopyScroller,
-*/
+57:Sector_SetPortal(5),
+58:Sector_CopyScroller(2),
 59:Polyobj_Or_MoveToSpot(3),
 60:Plat_PerpetualRaise(3),
 61:Plat_Stop(1/*,2*/),
@@ -1146,7 +1158,7 @@ special
 77:TeleportGroup(5),
 78:TeleportInSector(4,5),
 79:Thing_SetConversation(2),
-80:Acs_Execute(2,5),
+80:Acs_Execute(1,5),
 81:Acs_Suspend(2),
 82:Acs_Terminate(2),
 83:Acs_LockedExecute(5),
@@ -1166,12 +1178,10 @@ special
 97:Ceiling_LowerAndCrushDist(3,5),
 98:Sector_SetTranslucent(3,4),
 99:Floor_RaiseAndCrushDoom(3,4),
-/*
-100:Scroll_Texture_Left,
-101:Scroll_Texture_Right,
-102:Scroll_Texture_Up,
-103:Scroll_Texture_Down,
-*/
+100:Scroll_Texture_Left(1,2),
+101:Scroll_Texture_Right(1,2),
+102:Scroll_Texture_Up(1,2),
+103:Scroll_Texture_Down(1,2),
 /*
 104:Ceiling_CrushAndRaiseSilentDist,
 105:Door_WaitRaise,
@@ -1187,14 +1197,10 @@ special
 115:Light_Flicker(3),
 116:Light_Strobe(5),
 117:Light_Stop(1),
-/*
-118:Plane_Copy,
-*/
+118:Plane_Copy(5),
 119:Thing_Damage(2,3),
 120:Radius_Quake(5),
-/*
-121:Line_SetIdentification,
-*/
+121:Line_SetIdentification(5),
 125:Thing_Move(2,3),
 127:Thing_SetSpecial(5),
 128:ThrustThingZ(4),
@@ -1210,19 +1216,22 @@ special
 138:Floor_Waggle(5),
 139:Thing_SpawnFacing(2,4),
 140:Sector_ChangeSound(2),
-145:Player_SetTeam(1),
-152:Team_Score(2),
-153:Team_GivePoints(3),
+145:Player_SetTeam(1,2),
+152:Team_Score(1,2),
+153:Team_GivePoints(2,3),
 154:Teleport_NoStop(2,3),
-/*
-157:SetGlobalFogParameter,
-158:Fs_Execute,
-*/
+
+// From zandronum/src/actionspecials.h:
+// GZDoom/Vavoom specials
+// Although ZDoom doesn't support them it's better to have them defined so that
+// WADs using them somewhere can at least be started without aborting due
+// to an error message.
+157:SetGlobalFogParameter(2),
+158:Fs_Execute(1,4),
 159:Sector_SetPlaneReflection(3),
-/*
-160:Sector_Set3dFloor,
-161:Sector_SetContents,
-*/
+160:Sector_Set3dFloor(5),
+161:Sector_SetContents(3),
+
 168:Ceiling_CrushAndRaiseDist(3,5),
 169:Generic_Crusher2(5),
 170:Sector_SetCeilingScale2(3),
@@ -1236,9 +1245,7 @@ special
 178:Thing_ProjectileAimed(4,5),
 179:ChangeSkill(1),
 180:Thing_SetTranslation(2),
-/*
-181:Plane_Align,
-*/
+181:Plane_Align(3),
 182:Line_Mirror(0),
 183:Line_AlignCeiling(2),
 184:Line_AlignFloor(2),
@@ -1247,9 +1254,7 @@ special
 187:Sector_SetFloorPanning(5),
 188:Sector_SetCeilingScale(5),
 189:Sector_SetFloorScale(5),
-/*
-190:Static_Init,
-*/
+190:Static_Init(4),
 191:SetPlayerProperty(3),
 192:Ceiling_LowerToHighestFloor(2/*,5*/),
 193:Ceiling_LowerInstant(3/*,5*/),
@@ -1268,11 +1273,9 @@ special
 206:Plat_DownWaitUpStayLip(4,5),
 207:Plat_PerpetualRaiseLip(4),
 208:TranslucentLine(2,3),
-/*
-209:Transfer_Heights,
-210:Transfer_FloorLight,
-211:Transfer_CeilingLight,
-*/
+209:Transfer_Heights(2),
+210:Transfer_FloorLight(1),
+211:Transfer_CeilingLight(1),
 212:Sector_SetColor(4,5),
 213:Sector_SetFade(4),
 214:Sector_SetDamage(3/*,5*/),
@@ -1283,18 +1286,12 @@ special
 219:Sector_SetFriction(2),
 220:Sector_SetCurrent(4),
 221:Scroll_Texture_Both(5),
-/*
-222:Scroll_Texture_Model,
-*/
+222:Scroll_Texture_Model(2),
 223:Scroll_Floor(4),
 224:Scroll_Ceiling(4),
-/*
-225:Scroll_Texture_Offsets,
-*/
-226:Acs_ExecuteAlways(2,5),
-/*
-227:PointPush_SetForce,
-*/
+225:Scroll_Texture_Offsets(1),
+226:Acs_ExecuteAlways(1,5),
+227:PointPush_SetForce(4),
 228:Plat_RaiseAndStayTx0(2,3),
 229:Thing_SetGoal(3,4),
 230:Plat_UpByValueStayTx(3),
@@ -1318,10 +1315,10 @@ special
 248:HealThing(1,2),
 249:Door_CloseWaitOpen(3,4),
 250:Floor_Donut(3),
-251:FloorAndCeiling_LowerRaise(1,4),
+251:FloorAndCeiling_LowerRaise(3,4),
 252:Ceiling_RaiseToNearest(2/*,3*/),
 253:Ceiling_LowerToLowest(2/*,4*/),
-254:Ceiling_LowerToFloor(2,5),
+254:Ceiling_LowerToFloor(2/*,5*/),
 255:Ceiling_CrushRaiseAndStaySilA(4,5),
 /*
 256:Floor_LowerToHighestEE,
@@ -1490,6 +1487,22 @@ special
 -129:Strftime(2,3),
 -130:SetDeadSpectator(2),
 -131:SetActivatorToPlayer(1),
+-132:SetCurrentGamemode(1),
+-133:GetCurrentGamemode(0),
+-134:SetGamemodeLimit(2),
+-135:SetPlayerClass(3),
+-136:SetPlayerChasecam(2),
+-137:GetPlayerChasecam(1),
+-138:SetPlayerScore(3),
+-139:GetPlayerScore(2),
+-140:InDemoMode(0),
+-144:ExecuteClientScript(2,6),
+-145:NamedExecuteClientScript(2,6),
+-146:SendNetworkString(2,3),
+-147:NamedSendNetworkString(2,3),
+-148:GetChatMessage(2,3),
+-149:GetMapRotationSize(0),
+-150:GetMapRotationInfo(2),
 
 // ZDoom/GZDoom.
 /*
