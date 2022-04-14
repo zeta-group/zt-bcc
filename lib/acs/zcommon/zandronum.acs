@@ -914,9 +914,7 @@
 #define PICKAF_FORCETID 0x1
 #define PICKAF_RETURNTID 0x2
 
-/*
 #define TRANSLATION_ICE 0x100007
-*/
 
 #define MF_SPECIAL 0x1
 #define MF_SOLID 0x2

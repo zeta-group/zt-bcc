@@ -1053,9 +1053,7 @@ enum {
    PICKAF_RETURNTID = 0x2
 };
 
-/*
 enum { TRANSLATION_ICE = 0x10'0007 };
-*/
 
 enum {
    MF_SPECIAL = 0x1,
