@@ -34,6 +34,7 @@ static void test_if( struct semantic* semantic, struct stmt_test* test,
 static void test_cond( struct semantic* semantic, struct cond* cond );
 static void test_heavy_cond( struct semantic* semantic, struct stmt_test* test,
    struct heavy_cond* cond );
+static struct pos* get_heavy_cond_pos( struct heavy_cond* cond );
 static void test_switch( struct semantic* semantic, struct stmt_test* test,
    struct switch_stmt* stmt );
 static void test_switch_cond( struct semantic* semantic,
@@ -94,6 +95,7 @@ void s_init_stmt_test( struct stmt_test* test, struct stmt_test* parent ) {
    test->buildmsg = NULL;
    test->jump_break = NULL;
    test->jump_continue = NULL;
+   test->num_cases = 0;
    test->flow = FLOW_GOING;
    test->in_loop = false;
    test->manual_scope = false;
@@ -193,6 +195,10 @@ static void test_block_item( struct semantic* semantic, struct stmt_test* test,
    struct stmt_test nested_test;
    s_init_stmt_test( &nested_test, test );
    switch ( node->type ) {
+   case NODE_CONSTANT:
+      s_test_constant( semantic,
+         ( struct constant* ) node );
+      break;
    case NODE_ENUMERATION:
       s_test_enumeration( semantic,
          ( struct enumeration* ) node );
@@ -267,6 +273,9 @@ static void test_case( struct semantic* semantic, struct stmt_test* test,
    struct expr_test expr;
    s_init_expr_test( &expr, true, false );
    s_test_expr( semantic, &expr, label->number );
+   if ( s_describe_type( &switch_test->cond_type ) == TYPEDESC_ENUM ) {
+      s_reveal( &expr.type );
+   }
    if ( ! label->number->folded ) {
       s_diag( semantic, DIAG_POS_ERR, &label->number->pos,
          "case value not constant" );
@@ -310,6 +319,7 @@ static void test_case( struct semantic* semantic, struct stmt_test* test,
       label->next = switch_test->switch_stmt->case_head;
       switch_test->switch_stmt->case_head = label;
    }
+   ++switch_test->num_cases;
    // Flow.
    if ( switch_test->switch_stmt->cond.expr &&
       switch_test->switch_stmt->cond.expr->folded ) {
@@ -403,7 +413,7 @@ static void test_assert( struct semantic* semantic, struct stmt_test* test,
                s_bail( semantic );
             }
          }
-         s_diag( semantic, DIAG_POS, &assert->pos,
+         s_diag( semantic, DIAG_POS_ERR, &assert->pos,
             "assertion failure%s%s",
             string ? ": " : "",
             string ? string->value : "" );
@@ -486,7 +496,7 @@ static void test_stmt( struct semantic* semantic, struct stmt_test* test,
          ( struct inline_asm* ) node );
       break;
    default:
-      UNREACHABLE();
+      S_UNREACHABLE( semantic );
    }
 }
 
@@ -550,6 +560,7 @@ static void test_heavy_cond( struct semantic* semantic, struct stmt_test* test,
          s_init_expr_test( &expr, true, true );
          s_test_expr( semantic, &expr, cond->expr );
          s_init_type_info_copy( &test->cond_type, &expr.type );
+         s_reveal( &test->cond_type );
       }
       else {
          s_test_bool_expr( semantic, cond->expr );
@@ -560,6 +571,15 @@ static void test_heavy_cond( struct semantic* semantic, struct stmt_test* test,
             "condition variable not used in expression part of condition" );
          s_bail( semantic );
       }
+   }
+}
+
+static struct pos* get_heavy_cond_pos( struct heavy_cond* cond ) {
+   if ( cond->var && ! cond->expr ) {
+      return &cond->var->object.pos;
+   }
+   else {
+      return &cond->expr->pos;
    }
 }
 
@@ -586,6 +606,52 @@ static void test_switch( struct semantic* semantic, struct stmt_test* test,
    stmt->jump_break = test->jump_break;
    if ( stmt->case_head || stmt->case_default ) {
       warn_switch_skipped_init( semantic, ( struct block* ) stmt->body );
+   }
+   // For a condition of an enumeration type, make sure each enumerator is
+   // handled. When a default case is provided, it is assumed that each
+   // unspecified case is handled.
+   if ( s_describe_type( &test->cond_type ) == TYPEDESC_ENUM && ! (
+      test->num_cases == test->cond_type.enumeration->num_enumerators ||
+      stmt->case_default ) ) {
+      enum { MISSING_CASE_SHOW_LIMIT = 10 };
+      int missing = 0;
+      struct enumerator* enumerator = test->cond_type.enumeration->head;
+      while ( enumerator ) {
+         struct case_label* label = stmt->case_head;
+         while ( label && label->number->value != enumerator->value ) {
+            label = label->next;
+         }
+         if ( ! label ) {
+            // Report an error on the first missing case.
+            if ( missing == 0 ) {
+               s_diag( semantic, DIAG_POS_ERR,
+                  get_heavy_cond_pos( &stmt->cond ),
+                  "not all enumerators handled by switch statement" );
+            }
+            // Show the user some of the unhandled enumerators.
+            if ( missing < MISSING_CASE_SHOW_LIMIT ) {
+               struct str name;
+               str_init( &name );
+               t_copy_name( enumerator->name, &name );
+               s_diag( semantic, DIAG_POS | DIAG_NOTE,
+                  get_heavy_cond_pos( &stmt->cond ),
+                  "a case is missing for enumerator `%s`", name.value );
+               str_deinit( &name );
+            }
+            ++missing;
+         }
+         enumerator = enumerator->next;
+      }
+      if ( missing > 0 ) {
+         int not_shown = missing - MISSING_CASE_SHOW_LIMIT;
+         if ( not_shown > 0 ) {
+            s_diag( semantic, DIAG_POS | DIAG_NOTE,
+               get_heavy_cond_pos( &stmt->cond ),
+               "a case is missing for %d more enumerator%s", not_shown,
+               not_shown == 1 ? "" : "s" );
+         }
+         s_bail( semantic );
+      }
    }
    // Flow.
    if ( ( test->found_folded_case || stmt->case_default ) &&
@@ -718,8 +784,7 @@ static void test_for( struct semantic* semantic, struct stmt_test* test,
          s_bail( semantic );
       }
       else {
-         UNREACHABLE();
-         s_bail( semantic );
+         S_UNREACHABLE( semantic );
       }
       list_next( &i );
    }
@@ -767,14 +832,17 @@ static void test_foreach( struct semantic* semantic, struct stmt_test* test,
          "expression not of iterable type" );
       s_bail( semantic );
    }
-   if ( s_is_ref_type( &iter.value ) && expr.var ) {
-      if ( ! expr.var->hidden ) {
-         s_diag( semantic, DIAG_POS_ERR, &stmt->collection->pos,
-            "non-private collection (references only work with private map "
-            "variables)" );
-         s_bail( semantic );
+   // Note which variable is passed by reference.
+   if ( s_is_ref_type( &iter.value ) ) {
+      if ( expr.var ) {
+         if ( ! expr.var->hidden ) {
+            s_diag( semantic, DIAG_POS_ERR, &stmt->collection->pos,
+               "non-private collection (references only work with private map "
+               "variables)" );
+            s_bail( semantic );
+         }
+         expr.var->addr_taken = true;
       }
-      expr.var->addr_taken = true;
       if ( expr.structure_member ) {
          expr.structure_member->addr_taken = true;
       }
@@ -981,14 +1049,17 @@ static void test_return_value( struct semantic* semantic,
          s_bail( semantic );
       }
    }
-   if ( s_is_ref_type( &expr.type ) && expr.var ) {
-      if ( ! expr.var->hidden ) {
-         s_diag( semantic, DIAG_POS_ERR, &stmt->return_value->pos,
-            "non-private return-value (references only work with private map "
-            "variables)" );
-         s_bail( semantic );
+   // Note which variable is passed by reference.
+   if ( s_is_ref_type( &expr.type ) ) {
+      if ( expr.var ) {
+         if ( ! expr.var->hidden ) {
+            s_diag( semantic, DIAG_POS_ERR, &stmt->return_value->pos,
+               "non-private return-value (references only work with private map "
+               "variables)" );
+            s_bail( semantic );
+         }
+         expr.var->addr_taken = true;
       }
-      expr.var->addr_taken = true;
       if ( expr.structure_member ) {
          expr.structure_member->addr_taken = true;
       }

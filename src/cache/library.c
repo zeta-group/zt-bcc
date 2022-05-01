@@ -13,9 +13,7 @@
 #define WS( saver, field, value ) \
    f_ws( saver->w, field, value )
 #define WN( saver, field, value ) \
-   f_ws( saver->w, field, name_s( saver, value, false ) )
-#define WFN( saver, field, value ) \
-   f_ws( saver->w, field, name_s( saver, value, true ) )
+   f_ws( saver->w, field, name_s( saver, value ) )
 
 enum {
    // 0
@@ -120,7 +118,7 @@ static void save_object( struct saver* saver, struct object* object );
 static void save_script( struct saver* saver, struct script* script );
 static void save_pos( struct saver* saver, struct pos* pos );
 static int map_file( struct saver* saver, int id );
-static const char* name_s( struct saver* saver, struct name* name, bool full );
+static const char* name_s( struct saver* saver, struct name* name );
 
 void cache_save_lib( struct task* task, struct field_writer* writer,
    struct library* lib ) {
@@ -590,10 +588,9 @@ static int map_file( struct saver* saver, int id ) {
    return 0;
 }
 
-static const char* name_s( struct saver* saver,
-   struct name* name, bool full ) {
+static const char* name_s( struct saver* saver, struct name* name ) {
    str_clear( &saver->string );
-   t_copy_name( name, full, &saver->string );
+   t_copy_name( name, &saver->string );
    return saver->string.value;
 }
 
@@ -899,7 +896,7 @@ static struct structure* restore_structure( struct restorer* restorer ) {
       structure->name = t_create_name();
       structure->anon = true;
    }
-   structure->body = t_extend_name( structure->name, "." );
+   structure->body = t_create_name();
    while ( f_peek( restorer->r ) == F_STRUCTUREMEMBER ) {
       restore_structure_member( restorer, structure );
    }

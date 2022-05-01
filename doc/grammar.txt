@@ -51,15 +51,24 @@ namespace-header:
    <namespace-visibility> strict namespace
    <namespace-visibility> strict namespace <namespace-name>
    <namespace-visibility> namespace <namespace-name>
-   private namespace
+   <namespace-visibility> namespace
 
 namespace-visibility:
    private
    E
 
 namespace-name:
+   <namespace-name-coloncolon>
+   <namespace-name-dot>
+
+namespace-name-coloncolon:
    <identifier>
-   <namespace-name> . <identifier>
+   <namespace-name-coloncolon> :: <identifier>
+
+// DEPRECATED.
+namespace-name-dot:
+   <identifier>
+   <namespace-name-dot> . <identifier>
 
 namespace-member-list:
    <namespace-member>
@@ -78,10 +87,21 @@ using:
    using <path> : <import-list> ;
 
 path:
+   <path-coloncolon>
+   <path-dot>
+
+path-coloncolon:
+   :: <identifier>
+   upmost :: <identifier>
+   namespace :: <identifier>
+   <identifier> :: <identifier>
+   <path-coloncolon> :: <identifier>
+   
+path-dot:
    upmost // Upmost namespace.
    namespace // Current namespace.
    <identifier>
-   <path> . <identifier>
+   <path-dot> . <identifier>
 
 import-list:
    <import-item>
@@ -99,13 +119,14 @@ import-item:
 
 import-name:
    <identifier>
-   <type-name> 
+   <type-name>
 
 declaration:
    <specifier-declaration>
    <object-declaration>
 
 specifier-declaration:
+   <specifier-visibility> <symbolic-constant> ;
    <specifier-visibility> <enumeration> ;
    <specifier-visibility> <structure> ;
    <specifier-visibility> <type-alias> ;
@@ -113,6 +134,9 @@ specifier-declaration:
 specifier-visibility:
    private
    E
+
+symbolic-constant:
+   symb <identifier> = <expression> ;
 
 enumeration:
    enum <enumeration-name> <enumeration-base> <enumeration-body>
@@ -220,7 +244,7 @@ reference-structure:
 
 reference-storage:
    <reference-storage-name>
-   <reference-storage-name> : <decimal>
+   <reference-storage-name> : <decimal-number>
    E
 
 reference-storage-name:
@@ -237,7 +261,7 @@ reference-list:
 
 reference-item:
    <reference-storage> <dimension-list> <reference-marker>
-   ( <parameter-list-declaration> ) <reference-marker>
+   <function-keyword> <function-parameter-list> <reference-marker>
 
 instance-list:
    <instance>
@@ -278,8 +302,8 @@ initializer-list:
    <initializer-list> , <initializer>
 
 function:
-   <function-keyword> <function-return> <identifier> (
-      <parameter-list-declaration> ) <function-body>
+   <function-keyword> <function-return> <identifier> <function-parameter-list>
+      <function-body>
 
 function-keyword:
    function
@@ -288,6 +312,9 @@ function-keyword:
 function-return:
    <extended-specifier> <reference>
    <auto>
+
+function-parameter-list:
+   ( <parameter-list-declaration> )
 
 parameter-list-declaration:
    <parameter-list>
@@ -560,8 +587,8 @@ palette-translation:
    createtranslation ( <expression> , <palette-range-list> )
 
 palette-range-list:
-   <palrange>
-   <palrange-list> , <palrange>
+   <palette-range>
+   <palette-range-list> , <palette-range>
 
 palette-range:
    // NOTE: Assignment is not parsed in the second expression because it will
@@ -585,15 +612,12 @@ assert:
    static assert ( <expression> ) ;
    static assert ( <expression> , <string> ) ;
 
-buildmsg-statement:
-   <buildmsg>
-
 buildmsg:
    buildmsg ( <expression> ) <block-statement>
 
 inline-assembly:
-   > <inline-assembly-opcode> <nl>
-   > <inline-assembly-opcode> <inline-assembly-argument-list> <nl>
+   > <inline-assembly-opcode> <newline>
+   > <inline-assembly-opcode> <inline-assembly-argument-list> <newline>
 
 inline-assembly-opcode:
    <identifier>
@@ -737,9 +761,11 @@ format-item-array:
 primary:
    <strcpy>
    <memcpy>
+   <lengthof>
    <conversion>
    <parentheses>
-   <identifier>
+   <name-usage>
+   <qualified-name-usage>
    <number>
    <string>
    <character>
@@ -762,6 +788,9 @@ strcpy-source-argument:
 
 memcpy:
    memcpy <strcpy-call>
+
+lengthof:
+   lengthof ( <expression> )
 
 conversion:
    int ( <expression> )
@@ -806,6 +835,12 @@ function-literal-static:
 function-literal-return:
    <specifier>
    <auto>
+
+name-usage:
+   <identifier>
+
+qualified-name-usage:
+   <path-coloncolon>
 
 identifier:
    [a-zA-Z_][a-zA-Z0-9_]*
@@ -859,6 +894,9 @@ character-escape-sequence:
    \\[oO][0-7]+
    \\[xX][0-9a-fA-F]+
 
+newline:
+   // Newline character
+
 comment:
    [/][/][^\n]+ // Single-line comment.
    [/][*]([^*]*[*]+)+[/] // Multi-line comment.
@@ -904,6 +942,7 @@ keyword:
    struct
    suspend
    switch
+   symb
    terminate
    true
    typedef
@@ -922,6 +961,7 @@ context-sensitive-keyword:
    define
    disconnect
    encryptstrings
+   endregion
    enter
    event
    import
@@ -937,6 +977,7 @@ context-sensitive-keyword:
    open
    pickup
    redreturn
+   region
    reopen
    respawn
    unloading

@@ -14,6 +14,11 @@ enum result_description {
    RESULTDESC_PRIMITIVE
 };
 
+enum {
+   EXPECTING_SPACE,
+   EXPECTING_VALUE,
+};
+
 struct result {
    struct ref* ref;
    struct structure* structure;
@@ -22,6 +27,7 @@ struct result {
       R_NONE,
       R_VALUE,
       R_VAR,
+      R_ARRAY,
       R_ARRAYINDEX,
       R_NULL
    } status;
@@ -83,18 +89,34 @@ static void convert_to_boolean( struct codegen* codegen, struct result* result,
    int spec );
 static void visit_assign( struct codegen* codegen, struct result* result,
    struct assign* assign );
-static void assign_array_reference( struct codegen* codegen,
-   struct assign* assign, struct result* lside, struct result* result );
-static void assign_fixed( struct codegen* codegen, struct assign* assign,
-   struct result* lside, struct result* result );
-static void assign_fixed_mul( struct codegen* codegen, struct assign* assign,
-   struct result* lside, struct result* result );
-static void assign_str( struct codegen* codegen, struct assign* assign,
-   struct result* lside, struct result* result );
-static void assign_str_add( struct codegen* codegen, struct assign* assign,
-   struct result* lside, struct result* result );
 static void assign_value( struct codegen* codegen, struct assign* assign,
+   struct result* result );
+static void assign_value_var( struct codegen* codegen, struct assign* assign,
    struct result* lside, struct result* result );
+static void assign_value_array( struct codegen* codegen, struct assign* assign,
+   struct result* lside, struct result* result );
+static void assign_fixed( struct codegen* codegen, struct assign* assign,
+   struct result* result );
+static void assign_fixed_muldiv( struct codegen* codegen,
+   struct assign* assign, struct result* result );
+static void assign_fixed_muldiv_var( struct codegen* codegen,
+   struct assign* assign, struct result* lside, struct result* result );
+static void assign_fixed_muldiv_array( struct codegen* codegen,
+   struct assign* assign, struct result* lside, struct result* result );
+static void assign_str( struct codegen* codegen, struct assign* assign,
+   struct result* result );
+static void assign_str_add( struct codegen* codegen, struct assign* assign,
+   struct result* result );
+static void assign_str_add_var( struct codegen* codegen,
+   struct assign* assign, struct result* lside, struct result* result );
+static void assign_str_add_array( struct codegen* codegen,
+   struct assign* assign, struct result* lside, struct result* result );
+static void assign_array_ref( struct codegen* codegen, struct assign* assign,
+   struct result* result );
+static void assign_array_ref_var( struct codegen* codegen,
+   struct assign* assign, struct result* lside, struct result* result );
+static void assign_array_ref_array( struct codegen* codegen,
+   struct assign* assign, struct result* lside, struct result* result );
 static void visit_conditional( struct codegen* codegen,
    struct result* result, struct conditional* cond );
 static void write_conditional( struct codegen* codegen,
@@ -178,6 +200,7 @@ static void call_array_length( struct codegen* codegen, struct result* result,
    struct call* call );
 static void visit_sure( struct codegen* codegen, struct result* result,
    struct sure* sure );
+static bool is_null_check_needed( struct result* result );
 static void write_null_check( struct codegen* codegen );
 static void visit_primary( struct codegen* codegen, struct result* result,
    struct node* node );
@@ -193,6 +216,10 @@ static void visit_boolean( struct codegen* codegen, struct result* result,
    struct boolean* boolean );
 static void visit_name_usage( struct codegen* codegen, struct result* result,
    struct name_usage* usage );
+static void visit_qualified_name_usage( struct codegen* codegen,
+   struct result* result, struct qualified_name_usage* usage );
+static void visit_general_name_usage( struct codegen* codegen,
+   struct result* result, struct node* object );
 static void visit_constant( struct codegen* codegen, struct result* result,
    struct constant* constant );
 static void visit_enumerator( struct codegen* codegen,
@@ -224,6 +251,8 @@ static void push_ref_array_length( struct codegen* codegen,
    struct result* result, bool dim_info_pushed );
 static void copy_struct( struct codegen* codegen, struct result* result,
    struct memcpy_call* call );
+static void visit_lengthof( struct codegen* codegen, struct result* result,
+   struct lengthof* call );
 static void visit_conversion( struct codegen* codegen, struct result* result,
    struct conversion* conv );
 static void visit_null( struct codegen* codegen, struct result* result );
@@ -258,7 +287,7 @@ void c_visit_expr( struct codegen* codegen, struct expr* expr ) {
    case R_VAR:
       break;
    default:
-      UNREACHABLE()
+      C_UNREACHABLE( codegen );
    }
 }
 
@@ -348,8 +377,7 @@ static void push_operand_result( struct codegen* codegen,
    case RESULTDESC_PRIMITIVE:
       break;
    default:
-      UNREACHABLE();
-      t_bail( codegen->task );
+      C_UNREACHABLE( codegen );
    }
 }
 
@@ -418,7 +446,7 @@ static void visit_binary( struct codegen* codegen, struct result* result,
       write_binary_ref_func( codegen, result, binary );
       break;
    default:
-      UNREACHABLE()
+      C_UNREACHABLE( codegen );
    }
 }
 
@@ -445,7 +473,7 @@ static void write_binary_int( struct codegen* codegen, struct result* result,
    case BOP_DIV: code = PCD_DIVIDE; break;
    case BOP_MOD: code = PCD_MODULUS; break;
    default: 
-      UNREACHABLE()
+      C_UNREACHABLE( codegen );
    }
    c_pcd( codegen, code );
    result->status = R_VALUE;
@@ -468,7 +496,7 @@ static void write_binary_fixed( struct codegen* codegen, struct result* result,
    case BOP_GT: code = PCD_GT; break;
    case BOP_GTE: code = PCD_GE; break;
    default:
-      UNREACHABLE()
+      C_UNREACHABLE( codegen );
    }
    c_pcd( codegen, code );
    result->status = R_VALUE;
@@ -483,7 +511,7 @@ static void write_binary_bool( struct codegen* codegen, struct result* result,
    case BOP_EQ: code = PCD_EQ; break;
    case BOP_NEQ: code = PCD_NE; break;
    default:
-      UNREACHABLE()
+      C_UNREACHABLE( codegen );
    }
    c_pcd( codegen, code );
    result->status = R_VALUE;
@@ -506,7 +534,7 @@ static void write_binary_str( struct codegen* codegen, struct result* result,
       concat_str( codegen, result, binary );
       break;
    default:
-      UNREACHABLE()
+      C_UNREACHABLE( codegen );
    }
 }
 
@@ -542,7 +570,7 @@ static void lt_str( struct codegen* codegen, struct result* result,
       code = PCD_GT;
       break;
    default:
-      UNREACHABLE();
+      C_UNREACHABLE( codegen );
    }
    c_pcd( codegen, code );
    result->status = R_VALUE;
@@ -567,7 +595,7 @@ static void write_binary_ref( struct codegen* codegen, struct result* result,
       eq_ref( codegen, result, binary );
       break;
    default:
-      UNREACHABLE();
+      C_UNREACHABLE( codegen );
    }
 }
 
@@ -628,7 +656,7 @@ static void write_binary_ref_func( struct codegen* codegen,
       eq_func( codegen, result, binary );
       break;
    default:
-      UNREACHABLE();
+      C_UNREACHABLE( codegen );
    }
 }
 
@@ -726,234 +754,299 @@ static void convert_to_boolean( struct codegen* codegen, struct result* result,
    case RESULTDESC_REF:
       break;
    default:
-      UNREACHABLE();
-      t_bail( codegen->task );
+      C_UNREACHABLE( codegen );
    }
 }
 
 static void visit_assign( struct codegen* codegen, struct result* result,
    struct assign* assign ) {
-   struct result lside;
-   init_result( &lside, false );
-   visit_operand( codegen, &lside, assign->lside );
-   if ( lside.ref && lside.ref->type == REF_ARRAY ) {
-      assign_array_reference( codegen, assign, &lside, result );
-   }
-   else if ( assign->spec == SPEC_FIXED ) {
-      assign_fixed( codegen, assign, &lside, result );
-   }
-   else if ( assign->spec == SPEC_STR ) {
-      assign_str( codegen, assign, &lside, result );
-   }
-   else {
-      assign_value( codegen, assign, &lside, result );
+   switch ( assign->lside_type ) {
+   case ASSIGNLSIDE_PRIMITIVE:
+   case ASSIGNLSIDE_REF:
+      assign_value( codegen, assign, result );
+      break;
+   case ASSIGNLSIDE_PRIMITIVEFIXED:
+      assign_fixed( codegen, assign, result );
+      break;
+   case ASSIGNLSIDE_PRIMITIVESTR:
+      assign_str( codegen, assign, result );
+      break;
+   case ASSIGNLSIDE_REFARRAY:
+      assign_array_ref( codegen, assign, result );
+      break;
+   default:
+      C_UNREACHABLE( codegen );
    }
 }
 
-static void assign_array_reference( struct codegen* codegen,
-   struct assign* assign, struct result* lside, struct result* result ) {
-   if ( lside->status == R_ARRAYINDEX ) {
-      if ( result->push ) {
-         c_pcd( codegen, PCD_DUP );
-      }
-      c_pcd( codegen, PCD_DUP );
-      // Copy array offset.
-      struct result rside;
-      init_result( &rside, true );
-      visit_operand( codegen, &rside, assign->rside );
-      c_update_element( codegen, lside->storage, lside->index, AOP_NONE );
-      // Copy dimension information offset.
-      c_pcd( codegen, PCD_PUSHNUMBER, 1 );
-      c_pcd( codegen, PCD_ADD );
-      if ( rside.null ) {
-         c_pcd( codegen, PCD_PUSHNUMBER, 0 );
-      }
-      else {
-         if ( rside.dim ) {
-            c_pcd( codegen, PCD_PUSHNUMBER, rside.diminfo_start );
-         }
-         else {
-            c_push_dimtrack( codegen );
-         }
-      }
-      c_update_element( codegen, lside->storage, lside->index, AOP_NONE );
-      if ( result->push ) {
-         push_element( codegen, lside->storage, lside->index );
-         result->ref = rside.ref;
-         result->dim = rside.dim;
-         result->diminfo_start = rside.diminfo_start;
-         result->storage = rside.storage;
-         result->index = rside.index;
-         result->status = R_ARRAYINDEX;
-      }
+static void assign_value( struct codegen* codegen, struct assign* assign,
+   struct result* result ) {
+   struct result lside;
+   init_result( &lside, EXPECTING_SPACE );
+   visit_operand( codegen, &lside, assign->lside );
+   switch ( lside.status ) {
+   case R_VAR:
+      assign_value_var( codegen, assign, &lside, result );
+      break;
+   case R_ARRAYINDEX:
+      assign_value_array( codegen, assign, &lside, result );
+      break;
+   default:
+      C_UNREACHABLE( codegen );
    }
-   else {
-      // Push array offset.
-      struct result rside;
-      init_result( &rside, true );
-      visit_operand( codegen, &rside, assign->rside );
-      if ( result->push ) {
-         c_pcd( codegen, PCD_DUP );
-      }
-      // Push dimension information offset.
-      if ( rside.null ) {
-         c_pcd( codegen, PCD_PUSHNUMBER, 0 );
-      }
-      else {
-         if ( rside.dim ) {
-            c_pcd( codegen, PCD_PUSHNUMBER, rside.diminfo_start );
-         }
-         else {
-            c_push_dimtrack( codegen );
-         }
-      }
-      c_update_indexed( codegen, lside->storage, lside->index + 1, AOP_NONE );
-      c_update_indexed( codegen, lside->storage, lside->index, AOP_NONE );
-      if ( result->push ) {
-         result->ref = rside.ref;
-         result->structure = rside.structure;
-         result->dim = rside.dim;
-         result->diminfo_start = rside.diminfo_start;
-         result->storage = rside.storage;
-         result->index = rside.index;
-         result->status = R_ARRAYINDEX;
-      }
+}
+
+static void assign_value_var( struct codegen* codegen, struct assign* assign,
+   struct result* lside, struct result* result ) {
+   push_operand( codegen, assign->rside );
+   if ( assign->op == AOP_NONE && result->push ) {
+      c_pcd( codegen, PCD_DUP );
+      result->status = R_VALUE;
+   }
+   c_update_indexed( codegen, lside->storage, lside->index, assign->op );
+   if ( assign->op != AOP_NONE && result->push ) {
+      push_indexed( codegen, lside->storage, lside->index );
+      result->status = R_VALUE;
+   }
+}
+
+static void assign_value_array( struct codegen* codegen, struct assign* assign,
+   struct result* lside, struct result* result ) {
+   if ( result->push ) {
+      c_pcd( codegen, PCD_DUP );
+   }
+   push_operand( codegen, assign->rside );
+   c_update_element( codegen, lside->storage, lside->index, assign->op );
+   if ( result->push ) {
+      push_element( codegen, lside->storage, lside->index );
+      result->status = R_VALUE;
    }
 }
 
 static void assign_fixed( struct codegen* codegen, struct assign* assign,
-   struct result* lside, struct result* result ) {
+   struct result* result ) {
    switch ( assign->op ) {
    case AOP_NONE:
    case AOP_ADD:
    case AOP_SUB:
-      assign_value( codegen, assign, lside, result );
+      assign_value( codegen, assign, result );
       break;
    case AOP_MUL:
    case AOP_DIV:
-      assign_fixed_mul( codegen, assign, lside, result );
+      assign_fixed_muldiv( codegen, assign, result );
       break;
    default:
-      UNREACHABLE();
+      C_UNREACHABLE( codegen );
    }
 }
 
-static void assign_fixed_mul( struct codegen* codegen, struct assign* assign,
-   struct result* lside, struct result* result ) {
-   if ( lside->status == R_ARRAYINDEX ) {
-      if ( result->push ) {
-         c_pcd( codegen, PCD_DUP );
-      }
+static void assign_fixed_muldiv( struct codegen* codegen,
+   struct assign* assign, struct result* result ) {
+   struct result lside;
+   init_result( &lside, EXPECTING_SPACE );
+   visit_operand( codegen, &lside, assign->lside );
+   switch ( lside.status ) {
+   case R_VAR:
+      assign_fixed_muldiv_var( codegen, assign, &lside, result );
+      break;
+   case R_ARRAYINDEX:
+      assign_fixed_muldiv_array( codegen, assign, &lside, result );
+      break;
+   default:
+      C_UNREACHABLE( codegen );
    }
-   if ( lside->status == R_ARRAYINDEX ) {
-      c_pcd( codegen, PCD_DUP );
-      c_push_element( codegen, lside->storage, lside->index );
-   }
-   else {
-      push_indexed( codegen, lside->storage, lside->index );
-   }
+}
+
+static void assign_fixed_muldiv_var( struct codegen* codegen,
+   struct assign* assign, struct result* lside, struct result* result ) {
+   push_indexed( codegen, lside->storage, lside->index );
    push_operand( codegen, assign->rside );
-   if ( assign->op == AOP_MUL ) {
-      c_pcd( codegen, PCD_FIXEDMUL );
-   }
-   else {
+   if ( assign->op == AOP_DIV ) {
       c_pcd( codegen, PCD_FIXEDDIV );
    }
-   if ( lside->status == R_VAR ) {
-      if ( result->push ) {
-         c_pcd( codegen, PCD_DUP );
-      }
-   }
-   if ( lside->status == R_ARRAYINDEX ) {
-      c_update_element( codegen, lside->storage, lside->index, AOP_NONE );
-   }
    else {
-      c_update_indexed( codegen, lside->storage, lside->index, AOP_NONE );
+      c_pcd( codegen, PCD_FIXEDMUL );
    }
    if ( result->push ) {
-      if ( lside->status == R_ARRAYINDEX ) {
-         c_push_element( codegen, lside->storage, lside->index );
-      }
+      c_pcd( codegen, PCD_DUP );
+   }
+   c_update_indexed( codegen, lside->storage, lside->index, AOP_NONE );
+   if ( result->push ) {
+      result->status = R_VALUE;
+   }
+}
+
+static void assign_fixed_muldiv_array( struct codegen* codegen,
+   struct assign* assign, struct result* lside, struct result* result ) {
+   if ( result->push ) {
+      c_pcd( codegen, PCD_DUP );
+   }
+   c_pcd( codegen, PCD_DUP );
+   c_push_element( codegen, lside->storage, lside->index );
+   push_operand( codegen, assign->rside );
+   if ( assign->op == AOP_DIV ) {
+      c_pcd( codegen, PCD_FIXEDDIV );
+   }
+   else {
+      c_pcd( codegen, PCD_FIXEDMUL );
+   }
+   c_update_element( codegen, lside->storage, lside->index, AOP_NONE );
+   if ( result->push ) {
+      c_push_element( codegen, lside->storage, lside->index );
       result->status = R_VALUE;
    }
 }
 
 static void assign_str( struct codegen* codegen, struct assign* assign,
-   struct result* lside, struct result* result ) {
+   struct result* result ) {
    switch ( assign->op ) {
    case AOP_NONE:
-      assign_value( codegen, assign, lside, result );
+      assign_value( codegen, assign, result );
       break;
    case AOP_ADD:
-      assign_str_add( codegen, assign, lside, result );
+      assign_str_add( codegen, assign, result );
       break;
    default:
-      UNREACHABLE();
+      C_UNREACHABLE( codegen );
    }
 }
 
 static void assign_str_add( struct codegen* codegen, struct assign* assign,
-   struct result* lside, struct result* result ) {
-   if ( lside->status == R_ARRAYINDEX ) {
-      if ( result->push ) {
-         c_pcd( codegen, PCD_DUP );
-      }
+   struct result* result ) {
+   struct result lside;
+   init_result( &lside, EXPECTING_SPACE );
+   visit_operand( codegen, &lside, assign->lside );
+   switch ( lside.status ) {
+   case R_VAR:
+      assign_str_add_var( codegen, assign, &lside, result );
+      break;
+   case R_ARRAYINDEX:
+      assign_str_add_array( codegen, assign, &lside, result );
+      break;
+   default:
+      C_UNREACHABLE( codegen );
    }
+}
+
+static void assign_str_add_var( struct codegen* codegen,
+   struct assign* assign, struct result* lside, struct result* result ) {
    c_pcd( codegen, PCD_BEGINPRINT );
-   if ( lside->status == R_ARRAYINDEX ) {
-      c_pcd( codegen, PCD_DUP );
-      c_push_element( codegen, lside->storage, lside->index );
-   }
-   else {
-      push_indexed( codegen, lside->storage, lside->index );
-   }
+   push_indexed( codegen, lside->storage, lside->index );
    c_pcd( codegen, PCD_PRINTSTRING );
    push_operand( codegen, assign->rside );
    c_pcd( codegen, PCD_PRINTSTRING );
    c_pcd( codegen, PCD_SAVESTRING );
-   if ( lside->status == R_VAR ) {
-      if ( result->push ) {
-         c_pcd( codegen, PCD_DUP );
-      }
-   }
-   if ( lside->status == R_ARRAYINDEX ) {
-      c_update_element( codegen, lside->storage, lside->index, AOP_NONE );
-   }
-   else {
-      c_update_indexed( codegen, lside->storage, lside->index, AOP_NONE );
-   }
    if ( result->push ) {
-      if ( lside->status == R_ARRAYINDEX ) {
-         c_push_element( codegen, lside->storage, lside->index );
-      }
+      c_pcd( codegen, PCD_DUP );
+      result->status = R_VALUE;
+   }
+   c_update_indexed( codegen, lside->storage, lside->index, AOP_NONE );
+}
+
+static void assign_str_add_array( struct codegen* codegen,
+   struct assign* assign, struct result* lside, struct result* result ) {
+   if ( result->push ) {
+      c_pcd( codegen, PCD_DUP );
+   }
+   c_pcd( codegen, PCD_BEGINPRINT );
+   c_pcd( codegen, PCD_DUP );
+   c_push_element( codegen, lside->storage, lside->index );
+   c_pcd( codegen, PCD_PRINTSTRING );
+   push_operand( codegen, assign->rside );
+   c_pcd( codegen, PCD_PRINTSTRING );
+   c_pcd( codegen, PCD_SAVESTRING );
+   c_update_element( codegen, lside->storage, lside->index, AOP_NONE );
+   if ( result->push ) {
+      c_push_element( codegen, lside->storage, lside->index );
       result->status = R_VALUE;
    }
 }
 
-static void assign_value( struct codegen* codegen, struct assign* assign,
-   struct result* lside, struct result* result ) {
-   if ( lside->status == R_ARRAYINDEX ) {
-      if ( result->push ) {
-         c_pcd( codegen, PCD_DUP );
-      }
-      push_initz( codegen, lside->ref, assign->rside );
-      c_update_element( codegen, lside->storage, lside->index, assign->op );
-      if ( result->push ) {
-         push_element( codegen, lside->storage, lside->index );
-         result->status = R_VALUE;
-      }
+static void assign_array_ref( struct codegen* codegen, struct assign* assign,
+   struct result* result ) {
+   struct result lside;
+   init_result( &lside, EXPECTING_SPACE );
+   visit_operand( codegen, &lside, assign->lside );
+   switch ( lside.status ) {
+   case R_VAR:
+      assign_array_ref_var( codegen, assign, &lside, result );
+      break;
+   case R_ARRAYINDEX:
+      assign_array_ref_array( codegen, assign, &lside, result );
+      break;
+   default:
+      C_UNREACHABLE( codegen );
+   }
+}
+
+static void assign_array_ref_var( struct codegen* codegen,
+   struct assign* assign, struct result* lside, struct result* result ) {
+   // Push array offset.
+   struct result rside;
+   init_result( &rside, EXPECTING_VALUE );
+   visit_operand( codegen, &rside, assign->rside );
+   if ( result->push ) {
+      c_pcd( codegen, PCD_DUP );
+   }
+   // Push dimension information offset.
+   if ( rside.null ) {
+      c_pcd( codegen, PCD_PUSHNUMBER, 0 );
    }
    else {
-      push_initz( codegen, lside->ref, assign->rside );
-      if ( assign->op == AOP_NONE && result->push ) {
-         c_pcd( codegen, PCD_DUP );
-         result->status = R_VALUE;
+      if ( rside.dim ) {
+         c_pcd( codegen, PCD_PUSHNUMBER, rside.diminfo_start );
       }
-      c_update_indexed( codegen, lside->storage, lside->index, assign->op );
-      if ( assign->op != AOP_NONE && result->push ) {
-         push_indexed( codegen, lside->storage, lside->index );
-         result->status = R_VALUE;
+      else {
+         c_push_dimtrack( codegen );
       }
+   }
+   c_update_indexed( codegen, lside->storage, lside->index + 1, AOP_NONE );
+   c_update_indexed( codegen, lside->storage, lside->index, AOP_NONE );
+   if ( result->push ) {
+      result->ref = rside.ref;
+      result->structure = rside.structure;
+      result->dim = rside.dim;
+      result->diminfo_start = rside.diminfo_start;
+      result->storage = rside.storage;
+      result->index = rside.index;
+      result->status = R_ARRAYINDEX;
+   }
+}
+
+static void assign_array_ref_array( struct codegen* codegen,
+   struct assign* assign, struct result* lside, struct result* result ) {
+   if ( result->push ) {
+      c_pcd( codegen, PCD_DUP );
+   }
+   c_pcd( codegen, PCD_DUP );
+   // Copy array offset.
+   struct result rside;
+   init_result( &rside, EXPECTING_VALUE );
+   visit_operand( codegen, &rside, assign->rside );
+   c_update_element( codegen, lside->storage, lside->index, AOP_NONE );
+   // Copy dimension information offset.
+   c_pcd( codegen, PCD_PUSHNUMBER, 1 );
+   c_pcd( codegen, PCD_ADD );
+   if ( rside.null ) {
+      c_pcd( codegen, PCD_PUSHNUMBER, 0 );
+   }
+   else {
+      if ( rside.dim ) {
+         c_pcd( codegen, PCD_PUSHNUMBER, rside.diminfo_start );
+      }
+      else {
+         c_push_dimtrack( codegen );
+      }
+   }
+   c_update_element( codegen, lside->storage, lside->index, AOP_NONE );
+   if ( result->push ) {
+      push_element( codegen, lside->storage, lside->index );
+      result->ref = rside.ref;
+      result->dim = rside.dim;
+      result->diminfo_start = rside.diminfo_start;
+      result->storage = rside.storage;
+      result->index = rside.index;
+      result->status = R_ARRAYINDEX;
    }
 }
 
@@ -1099,7 +1192,7 @@ static void write_unary( struct codegen* codegen, struct result* result,
       // Unary plus is ignored.
       break;
    default:
-      UNREACHABLE()
+      C_UNREACHABLE( codegen );
    }
    result->status = R_VALUE;
 }
@@ -1291,8 +1384,7 @@ static void visit_subscript( struct codegen* codegen, struct result* result,
       subscript_str( codegen, subscript, result );
    }
    else {
-      UNREACHABLE();
-      t_bail( codegen->task );
+      C_UNREACHABLE( codegen );
    }
 }
 
@@ -1473,8 +1565,7 @@ static void visit_access( struct codegen* codegen, struct result* result,
          *result = lside;
          break;
       default:
-         UNREACHABLE();
-         c_bail( codegen );
+         C_UNREACHABLE( codegen );
       }
       break;
    case ACCESS_NAMESPACE:
@@ -1502,8 +1593,7 @@ static void visit_access( struct codegen* codegen, struct result* result,
       case NODE_NAMESPACE:
          break;
       default:
-         UNREACHABLE();
-         c_bail( codegen );
+         C_UNREACHABLE( codegen );
       }
       break;
    case ACCESS_STR:
@@ -1600,7 +1690,7 @@ static void visit_call( struct codegen* codegen, struct result* result,
       visit_internal_call( codegen, result, call );
       break;
    default:
-      UNREACHABLE()
+      C_UNREACHABLE( codegen );
    }
 }
 
@@ -1804,7 +1894,7 @@ static void set_user_func_call_result( struct codegen* codegen,
          result->status = R_VALUE;
          break;
       default:
-         UNREACHABLE();
+         C_UNREACHABLE( codegen );
       }
    }
    // Primitive-type result.
@@ -1854,7 +1944,7 @@ static void visit_sample_call( struct codegen* codegen, struct result* result,
          result->status = R_VALUE;
          break;
       default:
-         UNREACHABLE();
+         C_UNREACHABLE( codegen );
       }
    }
    // Primitive-type result.
@@ -2003,23 +2093,24 @@ static void visit_msgbuild_format_item( struct codegen* codegen,
 
 static void visit_internal_call( struct codegen* codegen,
    struct result* result, struct call* call ) {
-   struct func_intern* impl = call->func->impl; 
-   if ( impl->id == INTERN_FUNC_ACS_EXECWAIT ||
-      impl->id == INTERN_FUNC_ACS_NAMEDEXECUTEWAIT ) {
+   struct func_intern* impl = call->func->impl;
+   switch ( impl->id ) {
+   case INTERN_FUNC_ACS_EXECWAIT:
+   case INTERN_FUNC_ACS_NAMEDEXECUTEWAIT:
       write_executewait( codegen, call,
          ( impl->id == INTERN_FUNC_ACS_NAMEDEXECUTEWAIT ) );
-   }
-   else if ( impl->id == INTERN_FUNC_STR_LENGTH ) {
-      visit_operand( codegen, result, call->operand );
+      break;
+   case INTERN_FUNC_STR_LENGTH:
+      push_operand( codegen, call->operand );
       c_pcd( codegen, PCD_STRLEN );
-   }
-   else if ( impl->id == INTERN_FUNC_STR_AT ) {
-      visit_operand( codegen, result, call->operand );
-      c_push_expr( codegen, list_head( &call->args ) );
-      c_pcd( codegen, PCD_CALLFUNC, 2, 15 );
-   }
-   else if ( impl->id == INTERN_FUNC_ARRAY_LENGTH ) {
+      result->status = R_VALUE;
+      break;
+   case INTERN_FUNC_ARRAY_LENGTH:
       call_array_length( codegen, result, call );
+      result->status = R_VALUE;
+      break;
+   default:
+      C_UNREACHABLE( codegen );
    }
 }
 
@@ -2081,9 +2172,26 @@ static void visit_sure( struct codegen* codegen, struct result* result,
    result->direct = operand.direct;
 }
 
+static bool is_null_check_needed( struct result* result ) {
+   switch ( describe_result( result ) ) {
+   case RESULTDESC_REF:
+      return ( result->ref->nullable && ! result->safe );
+   default:
+      return false;
+   }
+}
+
 static void write_null_check( struct codegen* codegen ) {
-   struct func_user* impl = codegen->null_handler->impl;
-   c_pcd( codegen, PCD_CASEGOTO, NULLVALUE, impl->obj_pos );
+   if ( codegen->null_handler ) {
+      struct func_user* impl = codegen->null_handler->impl;
+      c_pcd( codegen, PCD_CASEGOTO, NULLVALUE, impl->obj_pos );
+   }
+   else {
+      C_INTERNAL_ERR( codegen,
+         "asked to write a null check, but the null handler is not "
+         "allocated" );
+      c_bail( codegen );
+   }
 }
 
 static void visit_primary( struct codegen* codegen, struct result* result,
@@ -2109,6 +2217,10 @@ static void visit_primary( struct codegen* codegen, struct result* result,
       visit_name_usage( codegen, result,
          ( struct name_usage* ) node );
       break;
+   case NODE_QUALIFIEDNAMEUSAGE:
+      visit_qualified_name_usage( codegen, result,
+         ( struct qualified_name_usage* ) node );
+      break;
    case NODE_STRCPY:
       visit_strcpy( codegen, result,
          ( struct strcpy_call* ) node );
@@ -2116,6 +2228,10 @@ static void visit_primary( struct codegen* codegen, struct result* result,
    case NODE_MEMCPY:
       visit_memcpy( codegen, result,
          ( struct memcpy_call* ) node );
+      break;
+   case NODE_LENGTHOF:
+      visit_lengthof( codegen, result,
+         ( struct lengthof* ) node );
       break;
    case NODE_CONVERSION:
       visit_conversion( codegen, result,
@@ -2141,7 +2257,7 @@ static void visit_primary( struct codegen* codegen, struct result* result,
          ( struct magic_id* ) node );
       break;
    default:
-      UNREACHABLE();
+      C_UNREACHABLE( codegen );
    }
 }
 
@@ -2187,33 +2303,43 @@ static void visit_boolean( struct codegen* codegen, struct result* result,
 
 static void visit_name_usage( struct codegen* codegen, struct result* result,
    struct name_usage* usage ) {
-   switch ( usage->object->type ) {
+   visit_general_name_usage( codegen, result, usage->object );
+}
+
+static void visit_qualified_name_usage( struct codegen* codegen,
+   struct result* result, struct qualified_name_usage* usage ) {
+   visit_general_name_usage( codegen, result, usage->object );
+}
+
+static void visit_general_name_usage( struct codegen* codegen,
+   struct result* result, struct node* object ) {
+   switch ( object->type ) {
    case NODE_CONSTANT:
       visit_constant( codegen, result,
-         ( struct constant* ) usage->object );
+         ( struct constant* ) object );
       break;
    case NODE_ENUMERATOR:
       visit_enumerator( codegen, result,
-         ( struct enumerator* ) usage->object );
+         ( struct enumerator* ) object );
       break;
    case NODE_VAR:
       visit_var( codegen, result,
-         ( struct var* ) usage->object );
+         ( struct var* ) object );
       break;
    case NODE_PARAM:
       visit_param( codegen, result,
-         ( struct param* ) usage->object );
+         ( struct param* ) object );
       break;
    case NODE_FUNC:
       visit_func( codegen, result,
-         ( struct func* ) usage->object );
+         ( struct func* ) object );
       break;
    case NODE_INDEXED_STRING_USAGE:
       visit_indexed_string_usage( codegen, result,
-         ( struct indexed_string_usage* ) usage->object );
+         ( struct indexed_string_usage* ) object );
       break;
    default:
-      UNREACHABLE();
+      C_UNREACHABLE( codegen );
    }
 }
 
@@ -2262,6 +2388,7 @@ static void visit_var( struct codegen* codegen, struct result* result,
       else {
          result->storage = var->storage;
          result->index = var->index;
+         result->status = R_ARRAY;
       }
       result->direct = true;
    }
@@ -2433,21 +2560,34 @@ static void visit_magic_id( struct codegen* codegen, struct result* result,
 
 static void visit_strcpy( struct codegen* codegen, struct result* result,
    struct strcpy_call* call ) {
-   struct result object;
-   init_result( &object, false );
-   visit_operand( codegen, &object, call->array->root );
-   if ( object.status != R_ARRAYINDEX ) {
+   // Push array offset. This is the start of the array.
+   struct result array;
+   init_result( &array, EXPECTING_VALUE );
+   visit_operand( codegen, &array, call->array->root );
+   switch ( array.status ) {
+   case R_ARRAY:
       c_pcd( codegen, PCD_PUSHNUMBER, 0 );
+      break;
+   case R_ARRAYINDEX:
+      break;
+   default:
+      C_UNREACHABLE( codegen );
    }
-   c_pcd( codegen, PCD_PUSHNUMBER, object.index );
-   // Offset within the array.
+   // Null check.
+   if ( is_null_check_needed( &array ) ) {
+      write_null_check( codegen );
+   }
+   // Push array index.
+   c_pcd( codegen, PCD_PUSHNUMBER, array.index );
+   // Push offset for the starting element. The string characters will be
+   // stored in the array starting from this element.
    if ( call->array_offset ) {
       c_push_expr( codegen, call->array_offset );
    }
    else {
       c_pcd( codegen, PCD_PUSHNUMBER, 0 );
    }
-   // Number of characters to copy from the string.
+   // Push number of characters to copy from the string.
    if ( call->array_length ) {
       c_push_expr( codegen, call->array_length );
    }
@@ -2455,30 +2595,32 @@ static void visit_strcpy( struct codegen* codegen, struct result* result,
       enum { MAX_LENGTH = INT_MAX };
       c_pcd( codegen, PCD_PUSHNUMBER, MAX_LENGTH );
    }
-   // String field.
+   // Push string.
    c_push_expr( codegen, call->string );
-   // String-offset field.
+   // Push substring offset. The string will be copied starting from this
+   // offset.
    if ( call->offset ) {
       c_push_expr( codegen, call->offset );
    }
    else {
       c_pcd( codegen, PCD_PUSHNUMBER, 0 );
    }
-   int code = PCD_STRCPYTOSCRIPTCHRANGE;
-   switch ( object.storage ) {
+   switch ( array.storage ) {
+   case STORAGE_LOCAL:
+      c_pcd( codegen, PCD_STRCPYTOSCRIPTCHRANGE );
+      break;
    case STORAGE_MAP:
-      code = PCD_STRCPYTOMAPCHRANGE;
+      c_pcd( codegen, PCD_STRCPYTOMAPCHRANGE );
       break;
    case STORAGE_WORLD:
-      code = PCD_STRCPYTOWORLDCHRANGE;
+      c_pcd( codegen, PCD_STRCPYTOWORLDCHRANGE );
       break;
    case STORAGE_GLOBAL:
-      code = PCD_STRCPYTOGLOBALCHRANGE;
+      c_pcd( codegen, PCD_STRCPYTOGLOBALCHRANGE );
       break;
    default:
-      break;
+      C_UNREACHABLE( codegen );
    }
-   c_pcd( codegen, code );
    result->status = R_VALUE;
 }
 
@@ -2492,7 +2634,7 @@ static void visit_memcpy( struct codegen* codegen, struct result* result,
       copy_struct( codegen, result, call );
       break;
    default:
-      UNREACHABLE();
+      C_UNREACHABLE( codegen );
    }
 }
 
@@ -2790,7 +2932,7 @@ static void push_array_size( struct codegen* codegen, struct result* result ) {
       push_diminfo( codegen );
    }
    else {
-      UNREACHABLE();
+      C_UNREACHABLE( codegen );
    }
 }
 
@@ -2803,7 +2945,7 @@ static void push_array_length( struct codegen* codegen, struct result* result,
       push_ref_array_length( codegen, result, dim_info_pushed );
    }
    else {
-      UNREACHABLE();
+      C_UNREACHABLE( codegen );
    }
 }
 
@@ -2929,6 +3071,31 @@ static void copy_struct( struct codegen* codegen, struct result* result,
    }
 }
 
+static void visit_lengthof( struct codegen* codegen, struct result* result,
+   struct lengthof* call ) {
+   // Length known at compile time.
+   if ( call->operand->folded ) {
+      c_pcd( codegen, PCD_PUSHNUMBER, call->value );
+   }
+   // Length must be determined at run time.
+   else {
+      struct result operand;
+      init_result( &operand, true );
+      push_operand_result( codegen, &operand, call->operand->root );
+      // Null check.
+      if ( operand.ref && operand.ref->type == REF_ARRAY &&
+         operand.ref->nullable && ! operand.safe ) {
+         write_null_check( codegen );
+      }
+      // Drop the array address because we do not need it for this operation.
+      if ( operand.status == R_ARRAYINDEX ) {
+         c_pcd( codegen, PCD_DROP );
+      }
+      push_array_length( codegen, &operand, false );
+   }
+   result->status = R_VALUE;
+}
+
 static void visit_conversion( struct codegen* codegen, struct result* result,
    struct conversion* conv ) {
    switch ( conv->spec ) {
@@ -2952,7 +3119,7 @@ static void visit_conversion( struct codegen* codegen, struct result* result,
          result->status = R_VALUE;
          break;
       default:
-         UNREACHABLE()
+         C_UNREACHABLE( codegen );
       }
       break;
    case SPEC_FIXED:
@@ -2970,7 +3137,7 @@ static void visit_conversion( struct codegen* codegen, struct result* result,
          result->status = R_VALUE;
          break;
       default:
-         UNREACHABLE()
+         C_UNREACHABLE( codegen );
       }
       break;
    case SPEC_BOOL:
@@ -3005,7 +3172,7 @@ static void visit_conversion( struct codegen* codegen, struct result* result,
             result->status = R_VALUE;
             break;
          default:
-            UNREACHABLE()
+            C_UNREACHABLE( codegen );
          }
       }
       break;
@@ -3045,11 +3212,11 @@ static void visit_conversion( struct codegen* codegen, struct result* result,
          result->status = R_VALUE;
          break;
       default:
-         UNREACHABLE()
+         C_UNREACHABLE( codegen );
       }
       break;
    default:
-      UNREACHABLE();
+      C_UNREACHABLE( codegen );
    }
 }
 
@@ -3251,34 +3418,58 @@ void c_push_foreach_collection( struct codegen* codegen,
 }
 
 void c_push_dimtrack( struct codegen* codegen ) {
-   if ( codegen->shary.dim_counter_var ) {
-      push_indexed( codegen, STORAGE_MAP, codegen->shary.dim_counter );
+   if ( codegen->shary.used ) {
+      if ( codegen->shary.dim_counter_var ) {
+         push_indexed( codegen, STORAGE_MAP, codegen->shary.dim_counter );
+      }
+      else {
+         c_pcd( codegen, PCD_PUSHNUMBER, SHAREDARRAYFIELD_DIMTRACK );
+         c_pcd( codegen, PCD_PUSHMAPARRAY, codegen->shary.index );
+      }
    }
    else {
-      c_pcd( codegen, PCD_PUSHNUMBER, SHAREDARRAYFIELD_DIMTRACK );
-      c_pcd( codegen, PCD_PUSHMAPARRAY, codegen->shary.index );
+      C_INTERNAL_ERR( codegen,
+         "asked to push dimension information, but shared array is not "
+         "allocated", __FILE__, __LINE__ ); 
+      c_bail( codegen );
    }
 }
 
 void c_update_dimtrack( struct codegen* codegen ) {
-   if ( codegen->shary.dim_counter_var ) {
-      c_update_indexed( codegen, STORAGE_MAP, codegen->shary.dim_counter,
-         AOP_NONE );
+   if ( codegen->shary.used ) {
+      if ( codegen->shary.dim_counter_var ) {
+         c_update_indexed( codegen, STORAGE_MAP, codegen->shary.dim_counter,
+            AOP_NONE );
+      }
+      else {
+         c_pcd( codegen, PCD_PUSHNUMBER, SHAREDARRAYFIELD_DIMTRACK );
+         c_pcd( codegen, PCD_SWAP );
+         c_pcd( codegen, PCD_ASSIGNMAPARRAY, codegen->shary.index );
+      }
    }
    else {
-      c_pcd( codegen, PCD_PUSHNUMBER, SHAREDARRAYFIELD_DIMTRACK );
-      c_pcd( codegen, PCD_SWAP );
-      c_pcd( codegen, PCD_ASSIGNMAPARRAY, codegen->shary.index );
+      C_INTERNAL_ERR( codegen,
+         "asked to update dimension information, but shared array is not "
+         "allocated" );
+      c_bail( codegen );
    }
 }
 
 static void inc_dimtrack( struct codegen* codegen ) {
-   if ( codegen->shary.dim_counter_var ) {
-      c_pcd( codegen, PCD_INCMAPVAR, codegen->shary.dim_counter );
+   if ( codegen->shary.used ) {
+      if ( codegen->shary.dim_counter_var ) {
+         c_pcd( codegen, PCD_INCMAPVAR, codegen->shary.dim_counter );
+      }
+      else {
+         c_pcd( codegen, PCD_PUSHNUMBER, SHAREDARRAYFIELD_DIMTRACK );
+         c_pcd( codegen, PCD_INCMAPARRAY, codegen->shary.index );
+      }
    }
    else {
-      c_pcd( codegen, PCD_PUSHNUMBER, SHAREDARRAYFIELD_DIMTRACK );
-      c_pcd( codegen, PCD_INCMAPARRAY, codegen->shary.index );
+      C_INTERNAL_ERR( codegen,
+         "asked to increment dimension information, but shared array is not "
+         "allocated" );
+      c_bail( codegen );
    }
 }
 

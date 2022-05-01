@@ -123,6 +123,9 @@ struct options {
    bool write_asserts;
    bool lang_specified;
    bool show_version;
+   bool legacy_ns_dot;
+   bool legacy_array_length_func;
+   bool legacy_str_length_func;
    bool slade_mode;
    struct {
       const char* dir_path;

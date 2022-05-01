@@ -375,7 +375,7 @@ static void present_extended_spec( struct structure* structure,
       if ( enumeration->name ) {
          struct str name;
          str_init( &name );
-         t_copy_name( enumeration->name, false, &name );
+         t_copy_name( enumeration->name, &name );
          str_append( string, "enum " );
          str_append( string, name.value );
          str_deinit( &name );
@@ -391,7 +391,7 @@ static void present_extended_spec( struct structure* structure,
       else {
          struct str name;
          str_init( &name );
-         t_copy_name( structure->name, false, &name );
+         t_copy_name( structure->name, &name );
          str_append( string, "struct " );
          str_append( string, name.value );
          str_deinit( &name );
@@ -464,8 +464,6 @@ static void present_ref( struct ref* ref, struct str* string ) {
       }
       else if ( ref->type == REF_FUNCTION ) {
          struct ref_func* func = ( struct ref_func* ) ref;
-         str_append( string, " " );
-         str_append( string, "function" );
          str_append( string, "(" );
          present_param_list( func->params, string );
          str_append( string, ")" );

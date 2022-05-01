@@ -32,6 +32,14 @@ struct call_test {
    bool format_param;
 };
 
+struct general_name_usage_test {
+   const char* text;
+   struct pos* pos;
+   struct path* path;
+   struct node* object;
+   bool qualified_name;
+};
+
 static void test_nested_expr( struct semantic* semantic,
    struct expr_test* parent_test, struct expr_test* test, struct expr* expr );
 static void test_root( struct semantic* semantic, struct expr_test* test,
@@ -216,9 +224,17 @@ static void test_boolean( struct semantic* semantic, struct result* result,
    struct boolean* boolean );
 static void test_name_usage( struct semantic* semantic, struct expr_test* test,
    struct result* result, struct name_usage* usage );
+static void test_qualified_name_usage( struct semantic* semantic,
+   struct expr_test* expr_test, struct result* result,
+   struct qualified_name_usage* usage );
+static void init_general_name_usage_test( struct general_name_usage_test* test,
+   struct pos* pos, const char* text, struct path* path );
+static void test_general_name_usage( struct semantic* semantic,
+   struct expr_test* expr_test, struct result* result,
+   struct general_name_usage_test* test );
 static void test_found_object( struct semantic* semantic,
-   struct expr_test* test, struct result* result, struct name_usage* usage,
-   struct object* object );
+   struct expr_test* expr_test, struct result* result,
+   struct general_name_usage_test* test, struct object* object );
 static struct ref* find_map_ref( struct ref* ref,
    struct structure* structure );
 static struct ref* find_map_ref_struct( struct structure* structure );
@@ -249,6 +265,8 @@ static void test_strcpy( struct semantic* semantic, struct expr_test* test,
    struct result* result, struct strcpy_call* call );
 static void test_memcpy( struct semantic* semantic, struct expr_test* test,
    struct result* result, struct memcpy_call* call );
+static void test_lengthof( struct semantic* semantic, struct expr_test* test,
+   struct result* result, struct lengthof* call );
 static void test_conversion( struct semantic* semantic, struct expr_test* test,
    struct result* result, struct conversion* conv );
 static bool perform_conversion( struct semantic* semantic,
@@ -277,6 +295,7 @@ void s_init_expr_test( struct expr_test* test, bool result_required,
    test->structure_member = NULL;
    test->func = NULL;
    test->magic_id_usage = NULL;
+   test->dim = NULL;
    test->dim_depth = 0;
    test->result_required = result_required;
    test->has_str = false;
@@ -352,6 +371,7 @@ static void test_root_with_result( struct semantic* semantic,
    test->structure_member = result->data_origin.structure_member;
    test->dim_depth = result->data_origin.dim_depth;
    test->func = result->func;
+   test->dim = result->dim;
    expr->spec = result->type.spec;
    expr->folded = result->folded;
    expr->value = result->value;
@@ -462,7 +482,7 @@ static bool perform_bop( struct semantic* semantic, struct binary* binary,
    case TYPEDESC_NULLREF:
       return perform_bop_ref( semantic, binary, lside, rside, result );
    default:
-      UNREACHABLE();
+      S_UNREACHABLE( semantic );
       return false;
    }
 }
@@ -621,8 +641,7 @@ static void fold_bop( struct semantic* semantic, struct binary* binary,
    case TYPEDESC_NULLREF:
       break;
    default:
-      UNREACHABLE();
-      s_bail( semantic );
+      S_UNREACHABLE( semantic );
    }
 }
 
@@ -644,8 +663,7 @@ static void fold_bop_primitive( struct semantic* semantic,
       fold_bop_str( semantic, binary, lside, rside );
       break;
    default:
-      UNREACHABLE();
-      s_bail( semantic );
+      S_UNREACHABLE( semantic );
    }
    result->value = binary->value;
    result->folded = binary->folded;
@@ -774,8 +792,7 @@ static void fold_bop_str_compare( struct semantic* semantic,
    case BOP_GT: binary->value = ( result > 0 ); break;
    case BOP_GTE: binary->value = ( result >= 0 ); break;
    default:
-      UNREACHABLE();
-      s_bail( semantic );
+      S_UNREACHABLE( semantic );
    }
    binary->folded = true;
 }
@@ -848,7 +865,7 @@ static bool can_convert_to_boolean( struct semantic* semantic,
    case TYPEDESC_NULLREF:
       return true;
    default:
-      UNREACHABLE();
+      S_UNREACHABLE( semantic );
       return false;
    }
 }
@@ -866,8 +883,7 @@ static void fold_logical( struct semantic* semantic, struct logical* logical,
    case TYPEDESC_NULLREF:
       break;
    default:
-      UNREACHABLE();
-      s_bail( semantic );
+      S_UNREACHABLE( semantic );
    }
    result->value = logical->value;
    result->folded = logical->folded;
@@ -885,8 +901,7 @@ static void fold_logical_primitive( struct semantic* semantic,
       l = lside->value;
       break;
    default:
-      UNREACHABLE();
-      s_bail( semantic );
+      S_UNREACHABLE( semantic );
    }
    int r = 0;
    switch ( rside->type.spec ) {
@@ -898,15 +913,13 @@ static void fold_logical_primitive( struct semantic* semantic,
       r = rside->value;
       break;
    default:
-      UNREACHABLE();
-      s_bail( semantic );
+      S_UNREACHABLE( semantic );
    }
    switch ( logical->op ) {
    case LOP_OR: l = ( l || r ); break;
    case LOP_AND: l = ( l && r ); break;
    default:
-      UNREACHABLE();
-      s_bail( semantic );
+      S_UNREACHABLE( semantic );
    }
    logical->value = l;
    logical->folded = true;
@@ -949,14 +962,17 @@ static void test_assign( struct semantic* semantic, struct expr_test* test,
          "invalid assignment operation" );
       s_bail( semantic );
    }
-   if ( s_is_ref_type( &lside.type ) && rside.data_origin.var ) {
-      if ( ! rside.data_origin.var->hidden ) {
-         s_diag( semantic, DIAG_POS_ERR, &assign->pos,
-            "non-private right operand (references only work with private map "
-            "variables)" );
-         s_bail( semantic );
+   // Note which variable is passed by reference.
+   if ( s_is_ref_type( &lside.type ) ) {
+      if ( rside.data_origin.var ) {
+         if ( ! rside.data_origin.var->hidden ) {
+            s_diag( semantic, DIAG_POS_ERR, &assign->pos,
+               "non-private right operand (references only work with private "
+               "map variables)" );
+            s_bail( semantic );
+         }
+         rside.data_origin.var->addr_taken = true;
       }
-      rside.data_origin.var->addr_taken = true;
       if ( rside.data_origin.structure_member ) {
          rside.data_origin.structure_member->addr_taken = true;
       }
@@ -975,7 +991,33 @@ static void test_assign( struct semantic* semantic, struct expr_test* test,
       s_diag( semantic, DIAG_WARN | DIAG_POS, &assign->pos,
          "assignment operation not in parentheses" );
    }
-   assign->spec = lside.type.spec;
+   // Summarize the left operand.
+   switch ( s_describe_type( &lside.type ) ) {
+   case TYPEDESC_PRIMITIVE:
+      switch ( lside.type.spec ) {
+      case SPEC_STR:
+         assign->lside_type = ASSIGNLSIDE_PRIMITIVESTR;
+         break;
+      case SPEC_FIXED:
+         assign->lside_type = ASSIGNLSIDE_PRIMITIVEFIXED;
+         break;
+      default:
+         assign->lside_type = ASSIGNLSIDE_PRIMITIVE;
+      }
+      break;
+   case TYPEDESC_ENUM:
+      assign->lside_type = ASSIGNLSIDE_PRIMITIVE;
+      break;
+   case TYPEDESC_FUNCREF:
+   case TYPEDESC_STRUCTREF:
+      assign->lside_type = ASSIGNLSIDE_REF;
+      break;
+   case TYPEDESC_ARRAYREF:
+      assign->lside_type = ASSIGNLSIDE_REFARRAY;
+      break;
+   default:
+      S_UNREACHABLE( semantic );
+   }
 }
 
 static bool perform_assign( struct semantic* semantic, struct assign* assign,
@@ -990,7 +1032,7 @@ static bool perform_assign( struct semantic* semantic, struct assign* assign,
    case TYPEDESC_FUNCREF:
       return perform_assign_ref( assign, lside, result );
    default:
-      UNREACHABLE();
+      S_UNREACHABLE( semantic );
       return false;
    }
 }
@@ -1145,6 +1187,7 @@ static void test_conditional( struct semantic* semantic,
       middle.data_origin : right.data_origin;
    cond->ref = snapshot.ref;
    cond->left_spec = left.type.spec;
+   // Note which variable is passed by reference.
    if ( s_is_ref_type( &middle.type ) ) {
       if ( middle.data_origin.var ) {
          if ( ! middle.data_origin.var->hidden ) {
@@ -1155,9 +1198,9 @@ static void test_conditional( struct semantic* semantic,
             s_bail( semantic );
          }
          middle.data_origin.var->addr_taken = true;
-         if ( middle.data_origin.structure_member ) {
-            middle.data_origin.structure_member->addr_taken = true;
-         }
+      }
+      if ( middle.data_origin.structure_member ) {
+         middle.data_origin.structure_member->addr_taken = true;
       }
       if ( right.data_origin.var ) {
          if ( ! right.data_origin.var->hidden ) {
@@ -1167,9 +1210,9 @@ static void test_conditional( struct semantic* semantic,
             s_bail( semantic );
          }
          right.data_origin.var->addr_taken = true;
-         if ( right.data_origin.structure_member ) {
-            right.data_origin.structure_member->addr_taken = true;
-         }
+      }
+      if ( right.data_origin.structure_member ) {
+         right.data_origin.structure_member->addr_taken = true;
       }
    }
    // Compile-time evaluation.
@@ -1236,7 +1279,7 @@ static bool perform_unary( struct semantic* semantic, struct unary* unary,
    case TYPEDESC_NULLREF:
       return perform_unary_ref( semantic, unary, operand, result );
    default:
-      UNREACHABLE();
+      S_UNREACHABLE( semantic );
       return false;
    }
 }
@@ -1271,7 +1314,7 @@ static bool perform_unary_primitive( struct semantic* semantic,
       spec = SPEC_BOOL;
       break;
    default:
-      UNREACHABLE()
+      S_UNREACHABLE( semantic );
    }
    if ( spec != SPEC_NONE ) {
       s_init_type_info_scalar( &result->type, s_spec( semantic, spec ) );
@@ -1321,8 +1364,7 @@ static void fold_unary( struct semantic* semantic, struct unary* unary,
       fold_unary_ref( semantic, unary, operand, result );
       break;
    default:
-      UNREACHABLE();
-      s_bail( semantic );
+      S_UNREACHABLE( semantic );
    }
 }
 
@@ -1339,8 +1381,7 @@ static void fold_unary_primitive( struct semantic* semantic,
          result->folded = true;
          break;
       default:
-         UNREACHABLE();
-         s_bail( semantic );
+         S_UNREACHABLE( semantic );
       }
       break;
    case UOP_PLUS:
@@ -1352,8 +1393,7 @@ static void fold_unary_primitive( struct semantic* semantic,
          result->folded = true;
          break;
       default:
-         UNREACHABLE();
-         s_bail( semantic );
+         S_UNREACHABLE( semantic );
       }
       break;
    case UOP_LOG_NOT:
@@ -1367,8 +1407,7 @@ static void fold_unary_primitive( struct semantic* semantic,
          result->folded = true;
          break;
       default:
-         UNREACHABLE();
-         s_bail( semantic );
+         S_UNREACHABLE( semantic );
       }
       break;
    case UOP_BIT_NOT:
@@ -1379,13 +1418,11 @@ static void fold_unary_primitive( struct semantic* semantic,
          result->folded = true;
          break;
       default:
-         UNREACHABLE();
-         s_bail( semantic );
+         S_UNREACHABLE( semantic );
       }
       break;
    default:
-      UNREACHABLE();
-      s_bail( semantic );
+      S_UNREACHABLE( semantic );
    }
 }
 
@@ -1399,8 +1436,7 @@ static void fold_unary_ref( struct semantic* semantic,
       result->folded = true;
       break;
    default:
-      UNREACHABLE();
-      s_bail( semantic );
+      S_UNREACHABLE( semantic );
    }
 }
 
@@ -1667,8 +1703,7 @@ static void test_subscript_array( struct semantic* semantic,
    case SUBSCRIPTRESULT_PRIMITIVE:
       break;
    default:
-      UNREACHABLE();
-      s_bail( semantic );
+      S_UNREACHABLE( semantic );
    }
 }
 
@@ -1776,7 +1811,7 @@ static struct structure_member* get_structure_member(
       else {
          struct str str;
          str_init( &str );
-         t_copy_name( lside->type.structure->name, false, &str );
+         t_copy_name( lside->type.structure->name, &str );
          s_diag( semantic, DIAG_POS_ERR, &access->pos,
             "`%s` not a member of struct `%s`", access->name,
             str.value );
@@ -1828,6 +1863,14 @@ static void test_access_ns( struct semantic* semantic,
       select_ns_object( semantic, test, result, object );
       access->rside = &object->node;
    }
+   // Deprecation warning for using `.` operator on a namespace.
+   if ( s_deprecation( semantic, DEPRECATION_NSDOT ) ) {
+      s_diag( semantic, DIAG_WARN | DIAG_POS, &access->pos,
+         "using `.` to access a namespace member is deprecated, use `::` "
+         "instead (to suppress this warning, use the -legacy-ns-dot "
+         "command-line option)" );
+      s_register_deprecation( semantic, DEPRECATION_NSDOT );
+   }
 }
 
 void s_unknown_ns_object( struct semantic* semantic, struct ns* ns,
@@ -1839,7 +1882,8 @@ void s_unknown_ns_object( struct semantic* semantic, struct ns* ns,
    else {
       struct str name;
       str_init( &name );
-      t_copy_name( ns->name, true, &name );
+      t_copy_full_name( ns->name, ( ns->dot_separator ) ? NAMESEPARATOR_DOT :
+         NAMESEPARATOR_COLONCOLON, &name );
       s_diag( semantic, DIAG_POS_ERR, pos,
          "`%s` not found in namespace `%s`", object_name,
          name.value );
@@ -1882,8 +1926,7 @@ static void select_ns_object( struct semantic* semantic,
          ( struct alias* ) object );
       break;
    default:
-      UNREACHABLE();
-      s_bail( semantic );
+      S_UNREACHABLE( semantic );
    }
 }
 
@@ -1901,10 +1944,22 @@ static void test_access_array( struct semantic* semantic,
    case NODE_FUNC:
       select_func( semantic, result,
          ( struct func* ) name->object );
+      // Deprecation warning for using Length() function.
+      if ( s_deprecation( semantic, DEPRECATION_ASSOCFUNCLENGTH ) ) {
+         struct func* func = ( struct func* ) name->object;
+         if ( func->type == FUNC_INTERNAL &&
+            ( ( struct func_intern* ) func->impl )->id ==
+            INTERN_FUNC_ARRAY_LENGTH ) {
+            s_diag( semantic, DIAG_WARN | DIAG_POS, &access->pos,
+               "using the Length() function of an array is deprecated, use "
+               "the lengthof() operator instead (to suppress this warning, "
+               "use the -legacy-array-length-func command-line option)" );
+            s_register_deprecation( semantic, DEPRECATION_ASSOCFUNCLENGTH );
+         }
+      }
       break;
    default:
-      UNREACHABLE();
-      s_bail( semantic );
+      S_UNREACHABLE( semantic );
    }
    access->type = ACCESS_ARRAY;
    access->rside = &name->object->node;
@@ -1928,10 +1983,22 @@ static void test_access_str( struct semantic* semantic,
    case NODE_FUNC:
       select_func( semantic, result,
          ( struct func* ) name->object );
+      // Deprecation warning for using Length() function.
+      if ( s_deprecation( semantic, DEPRECATION_ASSOCFUNCLENGTHSTR ) ) {
+         struct func* func = ( struct func* ) name->object;
+         if ( func->type == FUNC_INTERNAL &&
+            ( ( struct func_intern* ) func->impl )->id ==
+            INTERN_FUNC_STR_LENGTH ) {
+            s_diag( semantic, DIAG_WARN | DIAG_POS, &access->pos,
+               "using the Length() function of a string is deprecated, use "
+               "StrLen() instead (to suppress this warning, use the "
+               "-legacy-str-length-func command-line option)" );
+            s_register_deprecation( semantic, DEPRECATION_ASSOCFUNCLENGTHSTR );
+         }
+      }
       break;
    default:
-      UNREACHABLE();
-      s_bail( semantic );
+      S_UNREACHABLE( semantic );
    }
    access->type = ACCESS_STR;
    access->rside = &name->object->node;
@@ -1998,7 +2065,7 @@ static void test_call( struct semantic* semantic, struct expr_test* expr_test,
       call->ref_func = func;
    }
    else {
-      UNREACHABLE();
+      S_UNREACHABLE( semantic );
    }
 }
 
@@ -2104,7 +2171,7 @@ static void test_format_item( struct semantic* semantic,
       spec = SPEC_STR;
       break;
    default:
-      UNREACHABLE();
+      S_UNREACHABLE( semantic );
    }
    struct type_info required_type;
    s_init_type_info_scalar( &required_type, spec );
@@ -2265,14 +2332,17 @@ static void test_remaining_arg( struct semantic* semantic,
       }
    }
    ++test->num_args;
-   if ( s_is_ref_type( &arg.type ) && arg.var ) {
-      if ( ! arg.var->hidden ) {
-         s_diag( semantic, DIAG_POS_ERR, &expr->pos,
-            "non-private argument (references only work with private "
-            "map variables)" );
-         s_bail( semantic );
+   // Note which variable is passed by reference.
+   if ( s_is_ref_type( &arg.type ) ) {
+      if ( arg.var ) {
+         if ( ! arg.var->hidden ) {
+            s_diag( semantic, DIAG_POS_ERR, &expr->pos,
+               "non-private argument (references only work with private "
+               "map variables)" );
+            s_bail( semantic );
+         }
+         arg.var->addr_taken = true;
       }
-      arg.var->addr_taken = true;
       if ( arg.structure_member ) {
          arg.structure_member->addr_taken = true;
       }
@@ -2307,7 +2377,7 @@ static void present_func( struct semantic* semantic, struct call_test* test,
          test->func->name != semantic->task->blank_name ) {
          struct str name;
          str_init( &name );
-         t_copy_name( test->func->name, false, &name );
+         t_copy_name( test->func->name, &name );
          str_append( msg, "function " );
          str_append( msg, "`" );
          str_append( msg, name.value );
@@ -2331,7 +2401,7 @@ static void test_call_func( struct semantic* semantic, struct call_test* test,
       if ( ! impl->script_callable ) {
          struct str str;
          str_init( &str );
-         t_copy_name( test->func->name, false, &str );
+         t_copy_name( test->func->name, &str );
          s_diag( semantic, DIAG_POS_ERR, &call->pos,
             "action-special `%s` called from script", str.value );
          s_bail( semantic );
@@ -2388,7 +2458,7 @@ static void test_call_ded( struct semantic* semantic, struct call_test* test,
          if ( semantic->func_test->func ) {
             struct str str;
             str_init( &str );
-            t_copy_name( test->func->name, false, &str );
+            t_copy_name( test->func->name, &str );
             s_diag( semantic, DIAG_FILE, &call->pos,
                "waiting functions like `%s` can only be called inside a "
                "script", str.value );
@@ -2458,6 +2528,10 @@ static void test_primary( struct semantic* semantic, struct expr_test* test,
       test_name_usage( semantic, test, result,
          ( struct name_usage* ) node );
       break;
+   case NODE_QUALIFIEDNAMEUSAGE:
+      test_qualified_name_usage( semantic, test, result,
+         ( struct qualified_name_usage* ) node );
+      break;
    case NODE_STRCPY:
       test_strcpy( semantic, test, result,
          ( struct strcpy_call* ) node );
@@ -2465,6 +2539,10 @@ static void test_primary( struct semantic* semantic, struct expr_test* test,
    case NODE_MEMCPY:
       test_memcpy( semantic, test, result,
          ( struct memcpy_call* ) node );
+      break;
+   case NODE_LENGTHOF:
+      test_lengthof( semantic, test, result,
+         ( struct lengthof* ) node );
       break;
    case NODE_CONVERSION:
       test_conversion( semantic, test, result,
@@ -2492,7 +2570,7 @@ static void test_primary( struct semantic* semantic, struct expr_test* test,
       test_null( result );
       break;
    default:
-      UNREACHABLE();
+      S_UNREACHABLE( semantic );
    }
 }
 
@@ -2539,46 +2617,90 @@ static void test_boolean( struct semantic* semantic, struct result* result,
    result->usable = true;
 }
 
-static void test_name_usage( struct semantic* semantic, struct expr_test* test,
-   struct result* result, struct name_usage* usage ) {
+static void test_name_usage( struct semantic* semantic,
+   struct expr_test* expr_test, struct result* result,
+   struct name_usage* usage ) {
+   struct general_name_usage_test test;
+   init_general_name_usage_test( &test, &usage->pos, usage->text, NULL );
+   test_general_name_usage( semantic, expr_test, result, &test );
+   usage->object = test.object;
+}
+
+static void test_qualified_name_usage( struct semantic* semantic,
+   struct expr_test* expr_test, struct result* result,
+   struct qualified_name_usage* usage ) {
+   struct general_name_usage_test test;
+   init_general_name_usage_test( &test, NULL, NULL, usage->path );
+   test_general_name_usage( semantic, expr_test, result, &test );
+   usage->object = test.object;
+}
+
+static void init_general_name_usage_test( struct general_name_usage_test* test,
+   struct pos* pos, const char* text, struct path* path ) {
+   test->path = path;
+   test->text = text;
+   test->pos = pos;
+   test->object = NULL;
+   test->qualified_name = ( path != NULL );
+}
+
+static void test_general_name_usage( struct semantic* semantic,
+   struct expr_test* expr_test, struct result* result,
+   struct general_name_usage_test* test ) {
    struct object* object = NULL;
-   if ( test->name_offset ) {
-      struct name* name = t_extend_name( test->name_offset, usage->text );
-      object = name->object;
+   // Locate object.
+   if ( test->qualified_name ) {
+      struct follower follower;
+      s_init_follower( &follower, test->path, NODE_NONE );
+      s_follow_path( semantic, &follower );
+      test->text = follower.path->text;
+      test->pos = &follower.path->pos;
+      object = follower.result.object;
    }
-   if ( ! object ) {
-      struct object_search search;
-      s_init_object_search( &search, NODE_NONE, &usage->pos, usage->text );
-      s_search_object( semantic, &search );
-      object = search.object;
+   else {
+      // NOTE: Not sure anymore what the following if statement is for. Need to
+      // look into it and explain it.
+      if ( expr_test->name_offset ) {
+         struct name* name = t_extend_name( expr_test->name_offset,
+            test->text );
+         object = name->object;
+      }
+      if ( ! object ) {
+         struct object_search search;
+         s_init_object_search( &search, NODE_NONE, test->pos, test->text );
+         s_search_object( semantic, &search );
+         object = search.object;
+      }
    }
+   // Only use resolved objects. Make an exception for namespace objects,
+   // because we need to resolve the objects inside the namespace in order to
+   // resolve the namespace itself.
    if ( object && ( object->resolved ||
       object->node.type == NODE_NAMESPACE ) ) {
-      test_found_object( semantic, test, result, usage, object );
+      test_found_object( semantic, expr_test, result, test, object );
    }
-   // Object not found or isn't valid.
    else {
       if ( semantic->trigger_err ) {
          if ( object ) {
-            s_diag( semantic, DIAG_POS_ERR, &usage->pos,
-               "`%s` undefined", usage->text );
+            s_diag( semantic, DIAG_POS_ERR, test->pos,
+               "`%s` undefined", test->text );
          }
          else {
-            s_diag( semantic, DIAG_POS_ERR, &usage->pos,
-               "`%s` not found", usage->text );
+            s_diag( semantic, DIAG_POS_ERR, test->pos,
+               "`%s` not found", test->text );
          }
          s_bail( semantic );
       }
       else {
-         test->undef_erred = true;
-         longjmp( test->bail, 1 );
+         expr_test->undef_erred = true;
+         longjmp( expr_test->bail, 1 );
       }
    }
 }
 
 static void test_found_object( struct semantic* semantic,
-   struct expr_test* test, struct result* result, struct name_usage* usage,
-   struct object* object ) {
+   struct expr_test* expr_test, struct result* result,
+   struct general_name_usage_test* test, struct object* object ) {
    // The engine does not support accessing of arrays in another library unless
    // explicitly imported. So array and struct references only work in the
    // library which contains the referenced data.
@@ -2588,7 +2710,7 @@ static void test_found_object( struct semantic* semantic,
       struct ref* ref = find_map_ref( var->ref, ( var->spec == SPEC_STRUCT ) ?
          var->structure : NULL );
       if ( ref ) {
-         s_diag( semantic, DIAG_POS_ERR, &usage->pos,
+         s_diag( semantic, DIAG_POS_ERR, test->pos,
             "imported variable's type includes a reference-to-%s type",
             ref->type == REF_STRUCTURE ? "struct" : "array" );
          s_diag( semantic, DIAG_POS, &ref->pos,
@@ -2606,7 +2728,7 @@ static void test_found_object( struct semantic* semantic,
       struct func* func = ( struct func* ) object;
       struct ref* ref = find_map_ref( func->ref, NULL );
       if ( ref ) {
-         s_diag( semantic, DIAG_POS_ERR, &usage->pos,
+         s_diag( semantic, DIAG_POS_ERR, test->pos,
             "imported function's return type includes a reference-to-%s type",
             ref->type == REF_STRUCTURE ? "struct" : "array" );
          s_diag( semantic, DIAG_POS, &ref->pos,
@@ -2621,7 +2743,7 @@ static void test_found_object( struct semantic* semantic,
       while ( param ) {
          struct ref* ref = find_map_ref( param->ref, NULL );
          if ( ref ) {
-            s_diag( semantic, DIAG_POS_ERR, &usage->pos,
+            s_diag( semantic, DIAG_POS_ERR, test->pos,
                "imported function has parameter whose type includes a "
                "reference-to-%s type",
                ref->type == REF_STRUCTURE ? "struct" : "array" );
@@ -2658,7 +2780,7 @@ static void test_found_object( struct semantic* semantic,
          func_test = func_test->parent;
       }
       if ( func_test && func_test->func->object.depth >= object->depth ) {
-         s_diag( semantic, DIAG_POS, &usage->pos,
+         s_diag( semantic, DIAG_POS, test->pos,
             "%s outside a static function cannot be used",
             object->node.type == NODE_FUNC ? "local functions" :
             "local-storage variables" );
@@ -2667,13 +2789,13 @@ static void test_found_object( struct semantic* semantic,
    }
    switch ( object->node.type ) {
    case NODE_MAGICID:
-      select_magic_id( semantic, test, result,
+      select_magic_id( semantic, expr_test, result,
          ( struct magic_id* ) object );
-      usage->object = &test->magic_id_usage->node;
+      test->object = &expr_test->magic_id_usage->node;
       break;
    default:
-      select_object( semantic, test, result, object );
-      usage->object = &object->node;
+      select_object( semantic, expr_test, result, object );
+      test->object = &object->node;
    }
 }
 
@@ -2753,8 +2875,7 @@ static void select_object( struct semantic* semantic, struct expr_test* test,
    case NODE_TYPE_ALIAS:
       break;
    default:
-      UNREACHABLE();
-      s_bail( semantic );
+      S_UNREACHABLE( semantic );
    }
 }
 
@@ -2975,7 +3096,7 @@ static void expand_magic_id( struct semantic* semantic,
       break;
    case MAGICID_FUNCTION:
       if ( semantic->func_test->func->name ) {
-         t_copy_name( semantic->func_test->func->name, false, &name );
+         t_copy_name( semantic->func_test->func->name, &name );
       }
       else {
          // TODO: Create a nicer name.
@@ -2987,12 +3108,13 @@ static void expand_magic_id( struct semantic* semantic,
          str_append( &name, "" );
       }
       else {
-         t_copy_name( semantic->ns->name, true, &name );
+         t_copy_full_name( semantic->ns->name,
+            ( semantic->ns->dot_separator ) ? NAMESEPARATOR_DOT :
+            NAMESEPARATOR_COLONCOLON, &name );
       }
       break;
    default:
-      UNREACHABLE();
-      s_bail( semantic );
+      S_UNREACHABLE( semantic );
    }
    magic_id->string = t_intern_string_copy( semantic->task,
       name.value, name.length );
@@ -3005,7 +3127,13 @@ static void test_strcpy( struct semantic* semantic, struct expr_test* test,
    struct expr_test arg;
    s_init_expr_test( &arg, false, false );
    test_nested_expr( semantic, test, &arg, call->array );
-   if ( ! is_printable_array( semantic, &arg.type ) ) {
+   if ( is_printable_array( semantic, &arg.type ) ) {
+      // Null check.
+      if ( arg.type.ref->nullable ) {
+         semantic->lib->uses_nullable_refs = true;
+      }
+   }
+   else {
       s_diag( semantic, DIAG_POS_ERR, &call->array->pos,
          "argument is not a one-dimensional int array" );
       s_bail( semantic );
@@ -3125,6 +3253,31 @@ static void test_memcpy( struct semantic* semantic, struct expr_test* test,
    result->usable = true;
    if ( s_is_struct( &dst.type ) ) {
       call->type = MEMCPY_STRUCT;
+   }
+}
+
+static void test_lengthof( struct semantic* semantic, struct expr_test* test,
+   struct result* result, struct lengthof* call ) {
+   struct expr_test operand;
+   s_init_expr_test( &operand, false, false );
+   test_nested_expr( semantic, test, &operand, call->operand );
+   if ( s_describe_type( &operand.type ) != TYPEDESC_ARRAYREF ) {
+      s_diag( semantic, DIAG_POS_ERR, &call->operand->pos,
+         "operand is not an array" );
+      s_bail( semantic );
+   }
+   s_init_type_info_scalar( &result->type, s_spec( semantic, SPEC_INT ) );
+   result->complete = true;
+   result->usable = true;
+   // Compile-time evaluation.
+   if ( call->operand->folded ) {
+      call->value = operand.dim->length;
+      result->value = call->value;
+      result->folded = true;
+   }
+   // Null check.
+   if ( s_is_nullable( &operand.type ) ) {
+      semantic->lib->uses_nullable_refs = true;
    }
 }
 

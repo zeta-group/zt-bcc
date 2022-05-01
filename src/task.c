@@ -13,6 +13,7 @@ enum {
 struct diag_msg {
    struct str text;
    struct include_history_entry* file;
+   const char* filename;
    int line;
    int column;
    int flags;
@@ -46,6 +47,9 @@ static void link_file_entry( struct task* task, struct file_entry* entry );
 static struct indexed_string* intern_string( struct task* task,
    struct str_table* table, const char* value, int length, bool copy_value );
 static void init_ref( struct ref* ref, int type );
+static bool is_object_in_ns( struct ns* ns, struct object* object );
+static bool is_object_in_fragment( struct ns_fragment* fragment,
+   struct object* object );
 
 void t_init( struct task* task, struct options* options, jmp_buf* bail,
    struct str* compiler_dir ) {
@@ -153,6 +157,7 @@ struct ns* t_alloc_ns( struct name* name ) {
    ns->links = NULL;
    list_init( &ns->fragments );
    ns->hidden = false;
+   ns->dot_separator = false;
    return ns;
 }
 
@@ -246,39 +251,74 @@ struct name* t_extend_name( struct name* parent, const char* extension ) {
    return parent;
 }
 
-void t_copy_name( struct name* start, bool full, struct str* str ) {
+void t_copy_name( struct name* start, struct str* str ) {
    int length = 0;
    struct name* name = start;
-   if ( full ) {
-      while ( ! ( name->ch == '.' && name->parent->ch == '\0' ) ) {
-         name = name->parent;
-         ++length;
-      }
-   }
-   else {
-      while ( name->ch != '.' ) {
-         name = name->parent;
-         ++length;
-      }
+   while ( name && ! ( name->ch == '\0' || name->ch == '.' ) ) {
+      ++length;
+      name = name->parent;
    }
    if ( str->buffer_length < length + 1 ) {
       str_grow( str, length + 1 );
    }
    str->length = length;
-   str->value[ length ] = 0;
+   str->value[ length ] = '\0';
+   struct name* end = name;
    name = start;
-   while ( length ) {
+   while ( name != end ) {
       --length;
       str->value[ length ] = name->ch;
       name = name->parent;
    }
 }
 
-int t_full_name_length( struct name* name ) {
+void t_copy_full_name( struct name* start, const char* separator,
+   struct str* str ) {
    int length = 0;
-   while ( ! ( name->ch == '.' && name->parent->ch == '\0' ) ) {
+   struct name* name = start;
+   const int separator_length = strlen( separator );
+   while ( name && ! ( name->ch == '\0' || ( name->ch == '.' &&
+      name->parent && name->parent->ch == '\0' ) ) ) {
+      if ( name->ch == '.' ) {
+         length += separator_length;
+      }
+      else {
+         ++length;
+      }
       name = name->parent;
-      ++length;
+   }
+   if ( str->buffer_length < length + 1 ) {
+      str_grow( str, length + 1 );
+   }
+   str->length = length;
+   str->value[ length ] = '\0';
+   struct name* end = name;
+   name = start;
+   while ( name != end ) {
+      if ( name->ch == '.' ) {
+         length -= separator_length;
+         memcpy( str->value + length, separator, separator_length ); 
+      }
+      else {
+         --length;
+         str->value[ length ] = name->ch;
+      }
+      name = name->parent;
+   }
+}
+
+int t_full_name_length( struct name* name, const char* separator ) {
+   int length = 0;
+   const int separator_length = strlen( separator );
+   while ( name && ! ( name->ch == '\0' || ( name->ch == '.' &&
+      name->parent && name->parent->ch == '\0' ) ) ) {
+      if ( name->ch == '.' ) {
+         length += separator_length;
+      }
+      else {
+         ++length;
+      }
+      name = name->parent;
    }
    return length;
 }
@@ -325,16 +365,18 @@ void t_init_type_members( struct task* task ) {
 } */
 
 static void add_internal_file( struct task* task, const char* name ) {
-   struct include_history_entry* entry = t_alloc_include_history_entry( task );
+   struct include_history_entry* entry =
+      t_reserve_include_history_entry( task );
    entry->altern_name = name;
 }
 
-struct include_history_entry* t_alloc_include_history_entry(
+// Allocates and keeps track of (appends to a list) an include history entry.
+struct include_history_entry* t_reserve_include_history_entry(
    struct task* task ) {
    struct include_history_entry* entry = mem_alloc( sizeof( *entry ) );
    entry->parent = NULL;
    entry->altern_name = NULL;
-   entry->file_entry_id = INTERNALFILE_NONE;
+   entry->file = NULL;
    entry->id = list_size( &task->include_history );
    entry->line = 0;
    entry->imported = false;
@@ -356,12 +398,19 @@ void t_diag_args( struct task* task, int flags, va_list* args ) {
    if ( task->options->acc_err ) {
       log_diag( task, &msg );
    }
+   // Let the user know that internal errors are bugs.
+   if ( flags & DIAG_INTERNAL ) {
+      t_diag( task, DIAG_NOTE,
+         "an internal error is a bug in the compiler, please report it to the "
+         "developer" );
+   }
 }
 
 static void init_diag_msg( struct task* task, struct diag_msg* msg, int flags,
    va_list* args ) {
    str_init( &msg->text );
    msg->file = NULL;
+   msg->filename = NULL;
    msg->line = 0;
    msg->column = 0;
    msg->flags = flags;
@@ -375,6 +424,12 @@ static void init_diag_msg( struct task* task, struct diag_msg* msg, int flags,
          if ( msg->file->parent ) {
             msg->include_history = true;
          }
+      }
+   }
+   else if ( flags & DIAG_FILENAME ) {
+      msg->filename = va_arg( *args, const char* );
+      if ( flags & DIAG_LINE ) {
+         msg->line = va_arg( *args, int );
       }
    }
    // Append message prefix.
@@ -399,9 +454,14 @@ static void init_diag_msg( struct task* task, struct diag_msg* msg, int flags,
 }
 
 static void print_diag( struct task* task, struct diag_msg* msg ) {
-   if ( msg->flags & DIAG_FILE ) {
-      print_include_history( task, msg, stdout );
-      printf( "%s:", decode_filename( task, msg->file ) );
+   if ( msg->flags & DIAG_FILE || msg->flags & DIAG_FILENAME ) {
+      if ( msg->flags & DIAG_FILENAME ) {
+         printf( "%s:", msg->filename );
+      }
+      else {
+         print_include_history( task, msg, stdout );
+         printf( "%s:", decode_filename( task, msg->file ) );
+      }
       if ( msg->flags & DIAG_LINE ) {
          printf( "%d:", msg->line );
          if ( msg->flags & DIAG_COLUMN ) {
@@ -437,10 +497,15 @@ static void log_diag( struct task* task, struct diag_msg* msg ) {
       if ( ! task->err_file ) {
          open_logfile( task );
       }
-      if ( msg->flags & DIAG_FILE ) {
-         print_include_history( task, msg, task->err_file );
-         fprintf( task->err_file, "%s:",
-            decode_filename( task, msg->file ) );
+      if ( msg->flags & DIAG_FILE || msg->flags & DIAG_FILENAME ) {
+         if ( msg->flags & DIAG_FILENAME ) {
+            fprintf( task->err_file, "%s:", msg->filename );
+         }
+         else {
+            print_include_history( task, msg, task->err_file );
+            fprintf( task->err_file, "%s:",
+               decode_filename( task, msg->file ) );
+         }
          if ( msg->flags & DIAG_LINE ) {
             fprintf( task->err_file, "%d:", msg->line );
          }
@@ -493,14 +558,7 @@ static const char* decode_filename( struct task* task,
       return entry->altern_name;
    }
    else {
-      struct file_entry* file_entry = task->file_entries;
-      while ( file_entry ) {
-         if ( file_entry->id == entry->file_entry_id ) {
-            return file_entry->path.value;
-         }
-         file_entry = file_entry->next;
-      }
-      return NULL;
+      return entry->file->path.value;
    }
 }
 
@@ -825,6 +883,7 @@ struct constant* t_alloc_constant( void ) {
    constant->value = 0;
    constant->hidden = false;
    constant->has_str = false;
+   constant->force_local_scope = false;
    return constant;
 }
 
@@ -836,6 +895,7 @@ struct enumeration* t_alloc_enumeration( void ) {
    enumeration->name = NULL;
    enumeration->body = NULL;
    enumeration->base_type = SPEC_INT;
+   enumeration->num_enumerators = 0;
    enumeration->hidden = false;
    enumeration->semicolon = false;
    enumeration->force_local_scope = false;
@@ -864,6 +924,7 @@ void t_append_enumerator( struct enumeration* enumeration,
       enumeration->head = enumerator;
    }
    enumeration->tail = enumerator;
+   ++enumeration->num_enumerators;
 }
 
 struct structure* t_alloc_structure( void ) {
@@ -1010,6 +1071,7 @@ struct param* t_alloc_param( void ) {
    param->ref = NULL;
    param->structure = NULL;
    param->enumeration = NULL;
+   param->path = NULL;
    param->next = NULL;
    param->name = NULL;
    param->default_value = NULL;
@@ -1189,4 +1251,42 @@ struct script* t_alloc_script( void ) {
    script->size = 0;
    script->named_script = false;
    return script;
+}
+
+struct ns* t_find_ns_of_object( struct task* task, struct object* object ) {
+   struct list_iter i;
+   list_iterate( &task->namespaces, &i );
+   while ( ! list_end( &i ) ) {
+      struct ns* ns = list_data( &i );
+      if ( is_object_in_ns( ns, object ) ) {
+         return ns;
+      }
+      list_next( &i );
+   }
+   return NULL;
+}
+
+static bool is_object_in_ns( struct ns* ns, struct object* object ) {
+   struct list_iter i;
+   list_iterate( &ns->fragments, &i );
+   while ( ! list_end( &i ) ) {
+      if ( is_object_in_fragment( list_data( &i ), object ) ) {
+         return true;
+      }
+      list_next( &i );
+   }
+   return false;
+}
+
+static bool is_object_in_fragment( struct ns_fragment* fragment,
+   struct object* object ) {
+   struct list_iter i;
+   list_iterate( &fragment->objects, &i );
+   while ( ! list_end( &i ) ) {
+      if ( object == list_data( &i ) ) {
+         return true;
+      }
+      list_next( &i );
+   }
+   return false;
 }

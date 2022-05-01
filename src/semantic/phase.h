@@ -15,7 +15,6 @@ struct follower {
 };
 
 struct object_search {
-   struct ns* ns;
    const char* name;
    struct pos* pos;
    struct object* object;
@@ -56,6 +55,8 @@ struct stmt_test {
    struct jump* jump_break;
    struct jump* jump_continue;
    struct type_info cond_type;
+   // Number of non-default cases found for a switch statement.
+   int num_cases;
    enum {
       FLOW_GOING,
       FLOW_BREAKING,
@@ -77,6 +78,7 @@ struct expr_test {
    struct structure_member* structure_member;
    struct func* func;
    struct indexed_string_usage* magic_id_usage;
+   struct dim* dim;
    int dim_depth;
    bool result_required;
    bool has_str;
@@ -118,6 +120,19 @@ enum type_description {
    TYPEDESC_PRIMITIVE
 };
 
+enum deprecation {
+   // Description: using `.` operator on namespaces. Recommend using `::`
+   // instead.
+   DEPRECATION_NSDOT,
+   // Description: using the Length() function of arrays. Recommend using
+   // lengthof() instead.
+   DEPRECATION_ASSOCFUNCLENGTH,
+   // Description: using the Length() function of strings. Recommend using
+   // StrLen() instead.
+   DEPRECATION_ASSOCFUNCLENGTHSTR,
+   DEPRECATION_TOTAL
+};
+
 struct semantic {
    struct task* task;
    struct library* main_lib;
@@ -143,7 +158,23 @@ struct semantic {
    bool trigger_err;
    bool in_localscope;
    bool strong_type;
+   struct {
+      bool registered;
+      bool suppressed;
+   } deprecations[ DEPRECATION_TOTAL ];
 };
+
+#define S_INTERNAL_ERR( semantic, ... ) \
+   s_diag( semantic, DIAG_FILENAME | DIAG_LINE | DIAG_INTERNAL | DIAG_ERR, \
+      __FILE__, __LINE__, __VA_ARGS__ )
+#define S_UNREACHABLE( semantic ) \
+   S_INTERNAL_ERR( semantic, "unreachable code" ); \
+   s_bail( semantic )
+#define S_ASSERT( semantic, cond ) \
+   if ( ! ( cond ) ) { \
+      S_INTERNAL_ERR( semantic, "assertion failure" ); \
+      s_bail( semantic ); \
+   }
 
 void s_init( struct semantic* semantic, struct task* task );
 void s_test( struct semantic* semantic );
@@ -233,6 +264,12 @@ void s_test_nested_func( struct semantic* semantic, struct func* func );
 int s_spec( struct semantic* semantic, int spec );
 struct object* s_get_ns_object( struct ns* ns, const char* object_name,
    int requested_node );
+struct object* s_get_direct_ns_object( struct ns* ns, const char* object_name,
+   int requested_node );
+struct object* s_get_local_object( struct semantic* semantic,
+   const char* object_name, int requested_node );
+struct object* s_get_object( struct semantic* semantic,
+   const char* object_name, int requested_node );
 bool s_is_enumerator( struct type_info* type );
 bool s_is_null( struct type_info* type );
 bool s_is_nullable( struct type_info* type );
@@ -253,5 +290,8 @@ bool s_is_str( struct type_info* type );
 bool s_is_struct_ref( struct type_info* type );
 bool s_same_storageignored_type( struct type_info* a, struct type_info* b );
 void s_init_magic_id( struct magic_id* magic_id, int name );
+bool s_deprecation( struct semantic* semantic, enum deprecation deprecation );
+void s_register_deprecation( struct semantic* semantic,
+   enum deprecation deprecation );
 
 #endif

@@ -112,17 +112,13 @@ int main( int argc, char* argv[] ) {
 static bool check_slade_file ( void ) {
     FILE *slade_file;
     slade_file = fopen("slade_mode.txt", "r");
-    if(slade_file == 0)
-    {
-        fclose(slade_file);
-        return false;
-    }
-    else
-    {
+    if(slade_file)
+	{
         printf("SLADE mode on");
         fclose(slade_file);
         return true;
     }
+	return false;
 }
 
 static void init_options( struct options* options ) {
@@ -139,6 +135,9 @@ static void init_options( struct options* options ) {
    options->preprocess = false;
    options->write_asserts = true;
    options->show_version = false;
+   options->legacy_ns_dot = false;
+   options->legacy_array_length_func = false;
+   options->legacy_str_length_func = false;
    options->cache.dir_path = NULL;
    options->cache.lifetime = -1;
    options->cache.enable = false;
@@ -330,6 +329,15 @@ static bool read_options( struct options* options, char** argv ) {
             return false;
          }
       }
+      else if ( strcmp( option, "legacy-ns-dot" ) == 0 ) {
+         options->legacy_ns_dot = true;
+      }
+      else if ( strcmp( option, "legacy-array-length-func" ) == 0 ) {
+         options->legacy_array_length_func = true;
+      }
+      else if ( strcmp( option, "legacy-str-length-func" ) == 0 ) {
+         options->legacy_str_length_func = true;
+      }
       else {
          printf( "error: unknown option: %s\n", option );
          return false;
@@ -384,6 +392,14 @@ static void print_usage( char* path ) {
       "  -tab-size <size>     Specify the width of the tab character\n"
       "  -strip-asserts       Do not include asserts in object file\n"
       "                       (asserts will not be executed at run-time)\n"
+      "  -legacy-ns-dot       Do not show any deprecation warnings for using\n"
+      "                       the `.` operator on namespaces\n"
+      "  -legacy-array...\n"
+      "    -length-func       Do not show any deprecation warnings for using\n"
+      "                       Length() function of an array\n"
+      "  -legacy-str...\n"
+      "    -length-func       Do not show any deprecation warnings for using\n"
+      "                       Length() function of a string\n"
       "  -E                   Do preprocessing only\n"
       "  -D <name>            Create a macro with the specified name. The\n"
       "                       macro will have a value of 1\n"
