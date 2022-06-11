@@ -3,6 +3,7 @@
 #include "../phase.h"
 
 #define CMDLINEMACRO_TEXT "1"
+#define PRAGMA_USE_MACRO "__USE_MACROS__"
 
 enum dirc {
    DIRC_NONE,
@@ -19,6 +20,7 @@ enum dirc {
    DIRC_LINE,
    DIRC_REGION,
    DIRC_ENDREGION,
+   DIRC_PRAGMA,
    DIRC_NULL
 };
 
@@ -90,6 +92,7 @@ static void read_else( struct parse* parse, struct endif_search* search,
    struct pos* pos );
 static void read_endif( struct parse* parse, struct endif_search* search,
    struct pos* pos );
+static void read_pragma( struct parse* parse );
 static void skip_section( struct parse* parse, struct pos* pos );
 static void read_region( struct parse* parse );
 
@@ -117,13 +120,16 @@ static enum dirc identify_dirc( struct parse* parse ) {
       dirc = identify_named_dirc( iter.token->text );
       // To stay compatible with ACS, only execute the following directives
       // when inside the #if family of directives.
-      // zt-bcc: This rule no longer applies to BCS.
+      // zt-bcc: Added pragma "macro" to enable/disable macros
+      // and preprocessor #include is always executed in BCS.
       switch ( dirc ) {
       case DIRC_DEFINE:
-      case DIRC_INCLUDE:
-         if ( (! parse->ifdirc) && (parse->lang != LANG_BCS) ) {
+         if ( (! parse->ifdirc) && (! p_is_macro_defined( parse, PRAGMA_USE_MACRO )) )
             dirc = DIRC_NONE;
-         }
+         break;
+      case DIRC_INCLUDE:
+         if ( (! parse->ifdirc) && (parse->lang != LANG_BCS) )
+            dirc = DIRC_NONE;
          break;
       default:
          break;
@@ -153,11 +159,14 @@ static enum dirc identify_named_dirc( const char* name ) {
       { "line", DIRC_LINE },
       { "region", DIRC_REGION },
       { "endregion", DIRC_ENDREGION },
+      { "pragma", DIRC_PRAGMA },
       { NULL, DIRC_NONE }
    };
    int i = 0;
+   // zt-bcc: directive names are case-insensitive now.
+   // This fixes a bug where uppercase #include would use the regular ACS include instead.
    while ( table[ i ].name &&
-      strcmp( name, table[ i ].name ) != 0 ) {
+      stricmp( name, table[ i ].name ) != 0 ) {
       ++i;
    }
    return table[ i ].dirc;
@@ -196,6 +205,9 @@ static void read_identified_dirc( struct parse* parse, struct pos* pos,
    case DIRC_REGION:
    case DIRC_ENDREGION:
       read_region( parse );
+      break;
+   case DIRC_PRAGMA:
+      read_pragma( parse );
       break;
    case DIRC_NULL:
       break;
@@ -762,6 +774,41 @@ static void find_endif( struct parse* parse, struct endif_search* search ) {
             p_confirm_ifdircs_closed( parse );
          }
       }
+   }
+}
+
+static void read_pragma( struct parse* parse ) {
+   p_test_preptk( parse, TK_ID );
+   p_read_preptk( parse );
+   const char* name = parse->token->text;
+
+   if( stricmp( "macro", name ) == 0 ) {
+      p_read_preptk( parse );
+
+      const char* text = parse->token->text;
+      if( stricmp("on", text) == 0 ) {
+         if(! p_is_macro_defined( parse, PRAGMA_USE_MACRO ) ) {
+            struct macro* macro = alloc_macro( parse );
+            macro->name = PRAGMA_USE_MACRO;
+            append_macro( parse, macro );
+         }
+      }
+      else if( stricmp("off", text) == 0 ) {
+         if( p_is_macro_defined( parse, PRAGMA_USE_MACRO ) )
+            remove_macro( parse, PRAGMA_USE_MACRO );
+      }
+      else {
+         p_diag( parse, DIAG_POS_ERR | DIAG_SYNTAX, &parse->token->pos,
+            "unexpected %s", p_present_token_temp( parse, parse->token->type ) );
+         p_diag( parse, DIAG_POS, &parse->token->pos,
+            "expecting on or off here");
+         p_bail( parse );
+      }
+   }
+   else
+   {
+      p_diag( parse, DIAG_POS_ERR, &parse->token->pos, "unknown pragma %s", name);
+      p_bail( parse );
    }
 }
 
