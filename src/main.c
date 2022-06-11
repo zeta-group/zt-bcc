@@ -114,7 +114,7 @@ static bool check_slade_file ( void ) {
     slade_file = fopen("slade_mode.txt", "r");
     if(slade_file)
 	{
-        printf("SLADE mode on");
+        printf("SLADE mode on\n");
         fclose(slade_file);
         return true;
     }
