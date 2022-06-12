@@ -207,7 +207,11 @@ enum {
    CR_PURPLE,
    CR_DARKGRAY,
    CR_DARKGREY = CR_DARKGRAY,
-   CR_CYAN
+   CR_CYAN,
+   CR_ICE,
+   CR_FIRE,
+   CR_SAPPHIRE,
+   CR_TEAL
 };
 
 enum {
@@ -300,6 +304,7 @@ enum {
    APROP_MAXSTEPHEIGHT,
    APROP_MAXDROPOFFHEIGHT,
    APROP_DAMAGETYPE,
+   APROP_SOUNDCLASS,
 
    // Eternity.
    APROP_COUNTER0 = 100,
@@ -756,12 +761,7 @@ enum {
    AAPTR_PLAYER7 = 0x1000,
    AAPTR_PLAYER8 = 0x2000,
    AAPTR_FRIENDPLAYER = 0x4000,
-   AAPTR_GET_LINETARGET = 0x8000,
-   
-   // [AK] Actor pointers used exclusively for GAMEEVENT_ACTOR_DAMAGED
-   AAPTR_DAMAGE_SOURCE = 0x10000000,
-   AAPTR_DAMAGE_INFLICTOR = 0x40000000,
-   AAPTR_DAMAGE_TARGET = 0x80000000
+   AAPTR_GET_LINETARGET = 0x8000
 };
 
 enum {
@@ -1138,6 +1138,12 @@ enum {
 };
 
 enum {
+	SECPART_FLOOR,
+	SECPART_CEILING,
+	SECPART_3D
+};
+
+enum {
    GAMESTATE_UNSPECIFIED = -1,
    GAMESTATE_WAITFORPLAYERS,
    GAMESTATE_COUNTDOWN,
@@ -1175,38 +1181,29 @@ enum {
    TM_WEEKDAY
 };
 
-
-// [AK] For SetGamemodeLimit
-enum
-{
-	GAMELIMIT_FRAGS,
-	GAMELIMIT_TIME,
-	GAMELIMIT_POINTS,
-	GAMELIMIT_DUELS,
-	GAMELIMIT_WINS,
-	GAMELIMIT_WAVES
+//New 3.1 defines
+enum {
+   SCORE_FRAGS,
+   SCORE_POINTS,
+   SCORE_WINS,
+   SCORE_DEATHS,
+   SCORE_KILLS,
+   SCORE_ITEMS,
+   SCORE_SECRETS
 };
 
-// [AK] For SetPlayerScore and GetPlayerScore
-enum
-{
-	SCORE_FRAGS,
-	SCORE_POINTS,
-	SCORE_WINS,
-	SCORE_DEATHS,
-	SCORE_KILLS,
-	SCORE_ITEMS,
-	SCORE_SECRETS
+enum {
+   MAPROTATION_NAME,
+   MAPROTATION_LUMPNAME,
+   MAPROTATION_USED,
+   MAPROTATION_MINPLAYERS,
+   MAPROTATION_MAXPLAYERS
 };
 
-// [AK] For GetMapRotationInfo
-enum
-{
-	MAPROTATION_Name,
-	MAPROTATION_LumpName,
-	MAPROTATION_Used,
-	MAPROTATION_MinPlayers,
-	MAPROTATION_MaxPlayers
+enum {
+   AAPTR_DAMAGE_SOURCE    = 0x10000000,
+   AAPTR_DAMAGE_INFLICTOR = 0x40000000,
+   AAPTR_DAMAGE_TARGET    = 0x80000000
 };
 
 enum { INT_MIN = -INT_MAX - 1 };
@@ -1355,6 +1352,8 @@ special
 139:Thing_SpawnFacing(int,int;int,int):int,
 140:Sector_ChangeSound(int,int):int,
 145:Player_SetTeam(int):int,
+150:Line_SetHealth(int,int),
+151:Sector_SetHealth(int,int),
 152:Team_Score(int,int):int,
 153:Team_GivePoints(int,int,int):int,
 154:Teleport_NoStop(int,int;int):int,
@@ -1474,6 +1473,14 @@ special
 276:Ceiling_Stop(int):int,
 277:Sector_SetFloorGlow(int,int,int,int,int):int,
 278:Sector_SetCeilingGlow(int,int,int,int,int):int,
+279:Floor_MoveToValueAndCrush(int,int,int,int;int):int,
+280:Ceiling_MoveToValueAndCrush(int,int,int,int;int):int,
+281:Line_SetAutomapFlags(int,int,int):int,
+282:Line_SetAutomapStyle(int,int):int,
+
+//Eternity
+300:Portal_Define(int,int,int,int,int):int:0,
+301:Line_QuickPortal(int):int:0,
 
 // Extension functions
 -1:GetLineUdmfInt(int,str):int,
@@ -1525,7 +1532,7 @@ special
 -47:IsTidUsed(int):bool,
 -48:Sqrt(int):int,
 -49:FixedSqrt(fixed):fixed,
--50:VectorLength(raw,raw):raw, //raw, as both int and fixed are acceptable
+-50:VectorLength(raw,raw):raw,
 -51:SetHudClipRect(int,int,int,int;int,bool):void,
 -52:SetHudWrapWidth(int):void,
 -53:SetCVar(str,int):bool,
@@ -1552,7 +1559,7 @@ special
 -73:CheckFont(str):bool,
 -74:DropItem(int,str;int,int):int,
 -75:CheckFlag(int,str):bool,
--76:SetLineActivation(int,int):void,
+-76:SetLineActivation(int,int;int):void,
 -77:GetLineActivation(int):int,
 -78:GetActorPowerupTics(int,str):int,
 -79:ChangeActorAngle(int,fixed;bool):void,
@@ -1581,7 +1588,7 @@ special
 
 // Zandronum.
 -100:ResetMap():bool,
--101:PlayerIsSpectator(int):int,
+-101:PlayerIsSpectator(int):bool,
 -102:ConsolePlayerNumber():int,
 -103:GetTeamProperty(int,int):int,
 -104:GetPlayerLivesLeft(int):int,
@@ -1611,23 +1618,25 @@ special
 -128:GetTimeProperty(int,int;bool):int,
 -129:Strftime(int,str;bool):str,
 -130:SetDeadSpectator(int,bool):bool,
--131:SetActivatorToPlayer(int):int,
+-131:SetActivatorToPlayer(int):bool,
+
+//New 3.1 functions
 -132:SetCurrentGamemode(str):int,
 -133:GetCurrentGamemode():str,
--134:SetGamemodeLimit(int,int):int,
--135:SetPlayerClass(int,str,bool):int,
--136:SetPlayerChasecam(int,bool):int,
--137:GetPlayerChasecam(int):int,
--138:SetPlayerScore(int,int,int):int,
--139:GetPlayerScore(int,int):int,
--140:InDemoMode():int,
--144:ExecuteClientScript(int,int;int,int,int,int):int,
--145:NamedExecuteClientScript(str,int;int,int,int,int):int,
--146:SendNetworkString(int,str;int):int,
--147:NamedSendNetworkString(str,str;int),
--148:GetChatMessage(int,int):str,
+-134:SetGamemodeLimit(int, int):int,
+-135:SetPlayerClass(int, str, bool):int,
+-136:SetPlayerChasecam(int, bool):int,
+-137:GetPlayerChasecam(int):bool,
+-138:SetPlayerScore(int, int, int):int,
+-139:GetPlayerScore(int, int):int,
+-140:InDemoMode():bool,
+-144:ExecuteClientScript(int, int):int,
+-145:NamedExecuteClientScript(str, int):int,
+-146:SendNetworkString(int, str):int,
+-147:NamedSendNetworkString(str, str):int,
+-148:GetChatMessage(int, int):str,
 -149:GetMapRotationSize():int,
--150:GetMapRotationInfo(int,int):int,
+-150:GetMapRotationInfo(int, int):raw,
 
 // ZDoom/GZDoom.
 -200:CheckClass(str):bool,
@@ -1637,9 +1646,9 @@ special
 -204:GetActorFloorTexture(int):str,
 -205:GetActorFloorTerrain(int):str,
 -206:StrArg(str):int,
--207:Floor(fixed):fixed,
--208:Round(fixed):fixed,
--209:Ceil(fixed):fixed,
+-207:ZDoom_Floor(fixed):fixed,
+-208:ZDoom_Round(fixed):fixed,
+-209:ZDoom_Ceil(fixed):fixed,
 // TODO: This function declaration looks ugly. Make it pretty.
 -210:ScriptCall(str,str;
    raw,raw,raw,raw,raw,raw,raw,raw,raw,raw,raw,raw,raw,raw,raw,
@@ -1651,10 +1660,14 @@ special
    raw,raw,raw,raw,raw,raw,raw,raw,raw,raw,raw,raw,raw,raw,raw,
    raw,raw,raw),
 -211:StartSlideShow(str),
+-212:GetSectorHealth(int,int):int,
+-213:GetLineHealth(int):int,
+-214:SetSubtitleNumber(int,int),
 
 // Eternity.
 -300:GetLineX(int,fixed,fixed):fixed,
 -301:GetLineY(int,fixed,fixed):fixed,
+-302:SetAirFriction(fixed):void,
 
 // GZDoom.
 -400:SetSectorGlow(int,int,int,int,int,int):void,
