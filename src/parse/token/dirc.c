@@ -1,4 +1,5 @@
 #include <string.h>
+#include <ctype.h>
 
 #include "../phase.h"
 
@@ -96,6 +97,21 @@ static void read_pragma( struct parse* parse );
 static void skip_section( struct parse* parse, struct pos* pos );
 static void read_region( struct parse* parse );
 
+static int bcc_stricmp (const char *s1, const char *s2)
+{
+   unsigned char c1, c2;
+   
+   do {
+      c1 = (unsigned char) tolower(*s1);
+      c2 = (unsigned char) tolower(*s2);
+
+      s1++;
+      s2++;
+   } while ( (c1 == c2) && (c2 != '\0') );
+   
+   return c1 - c2;
+}
+
 bool p_read_dirc( struct parse* parse ) {
    enum dirc dirc = identify_dirc( parse );
    if ( dirc != DIRC_NONE ) {
@@ -166,7 +182,7 @@ static enum dirc identify_named_dirc( const char* name ) {
    // zt-bcc: directive names are case-insensitive now.
    // This fixes a bug where uppercase #include would use the regular ACS include instead.
    while ( table[ i ].name &&
-      stricmp( name, table[ i ].name ) != 0 ) {
+      bcc_stricmp( name, table[ i ].name ) != 0 ) {
       ++i;
    }
    return table[ i ].dirc;
@@ -782,18 +798,18 @@ static void read_pragma( struct parse* parse ) {
    p_read_preptk( parse );
    const char* name = parse->token->text;
 
-   if( stricmp( "macro", name ) == 0 ) {
+   if( bcc_stricmp( "macro", name ) == 0 ) {
       p_read_preptk( parse );
 
       const char* text = parse->token->text;
-      if( stricmp("on", text) == 0 ) {
+      if( bcc_stricmp("on", text) == 0 ) {
          if(! p_is_macro_defined( parse, PRAGMA_USE_MACRO ) ) {
             struct macro* macro = alloc_macro( parse );
             macro->name = PRAGMA_USE_MACRO;
             append_macro( parse, macro );
          }
       }
-      else if( stricmp("off", text) == 0 ) {
+      else if( bcc_stricmp("off", text) == 0 ) {
          if( p_is_macro_defined( parse, PRAGMA_USE_MACRO ) )
             remove_macro( parse, PRAGMA_USE_MACRO );
       }
