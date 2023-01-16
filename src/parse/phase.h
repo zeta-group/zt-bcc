@@ -418,6 +418,12 @@ struct parse {
    struct macro_arg* macro_arg_free;
    struct ifdirc* ifdirc;
    struct ifdirc* ifdirc_free;
+   
+   struct
+   {
+      bool raw_define;
+      bool raw_include;
+   } preproc_pragmas;
 
    int line;
    int column;

@@ -26,6 +26,9 @@ void p_init( struct parse* parse, struct task* task, struct cache* cache ) {
    parse->macro_arg_free = NULL;
    parse->ifdirc = NULL;
    parse->ifdirc_free = NULL;
+   
+   parse->preproc_pragmas.raw_define = false;
+   parse->preproc_pragmas.raw_include = false;
 
    parse->line = 0;
    parse->column = 0;
