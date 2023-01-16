@@ -4,7 +4,6 @@
 #include "../phase.h"
 
 #define CMDLINEMACRO_TEXT "1"
-#define PRAGMA_USE_MACRO "__USE_MACROS__"
 
 enum dirc {
    DIRC_NONE,
@@ -136,15 +135,15 @@ static enum dirc identify_dirc( struct parse* parse ) {
       dirc = identify_named_dirc( iter.token->text );
       // To stay compatible with ACS, only execute the following directives
       // when inside the #if family of directives.
-      // zt-bcc: Added pragma "macro" to enable/disable macros
-      // and preprocessor #include is always executed in BCS.
+      // zt-bcc: Added pragma "raw define" to enable/disable preprocessor macros
+      // and pragma "raw include" to enable/disable preprocessor include
       switch ( dirc ) {
       case DIRC_DEFINE:
-         if ( (! parse->ifdirc) && (! p_is_macro_defined( parse, PRAGMA_USE_MACRO )) )
+         if ( (! parse->ifdirc) && (! parse->preproc_pragmas.raw_define) )
             dirc = DIRC_NONE;
          break;
       case DIRC_INCLUDE:
-         if ( (! parse->ifdirc) && (parse->lang != LANG_BCS) )
+         if ( (! parse->ifdirc) && (! parse->preproc_pragmas.raw_include) )
             dirc = DIRC_NONE;
          break;
       default:
@@ -793,33 +792,50 @@ static void find_endif( struct parse* parse, struct endif_search* search ) {
    }
 }
 
+static bool read_pragma_onoff (struct parse* parse)
+{
+   p_read_preptk( parse );
+   const char* text = parse->token->text;
+	
+   if( bcc_stricmp("on", text) == 0 ) {
+      return true;
+   }
+   else if( bcc_stricmp("off", text) == 0 ) {
+      return false;
+   }
+   else {
+      p_diag( parse, DIAG_POS_ERR | DIAG_SYNTAX, &parse->token->pos,
+            "unexpected %s", p_present_token_temp( parse, parse->token->type ) );
+      p_diag( parse, DIAG_POS, &parse->token->pos,
+            "expecting on or off here");
+      p_bail( parse );
+   }
+   
+   return false;
+}
+
 static void read_pragma( struct parse* parse ) {
    p_test_preptk( parse, TK_ID );
    p_read_preptk( parse );
    const char* name = parse->token->text;
 
-   if( bcc_stricmp( "macro", name ) == 0 ) {
+   if( bcc_stricmp( "raw", name ) == 0 ) {
       p_read_preptk( parse );
-
-      const char* text = parse->token->text;
-      if( bcc_stricmp("on", text) == 0 ) {
-         if(! p_is_macro_defined( parse, PRAGMA_USE_MACRO ) ) {
-            struct macro* macro = alloc_macro( parse );
-            macro->name = PRAGMA_USE_MACRO;
-            append_macro( parse, macro );
-         }
-      }
-      else if( bcc_stricmp("off", text) == 0 ) {
-         if( p_is_macro_defined( parse, PRAGMA_USE_MACRO ) )
-            remove_macro( parse, PRAGMA_USE_MACRO );
-      }
-      else {
-         p_diag( parse, DIAG_POS_ERR | DIAG_SYNTAX, &parse->token->pos,
-            "unexpected %s", p_present_token_temp( parse, parse->token->type ) );
-         p_diag( parse, DIAG_POS, &parse->token->pos,
-            "expecting on or off here");
+	  const char* text = parse->token->text;
+	  
+	  if( bcc_stricmp( "define", text ) == 0 )
+	  {
+		 parse->preproc_pragmas.raw_define = read_pragma_onoff( parse );
+	  }
+	  else if( bcc_stricmp( "include", text ) == 0 )
+	  {
+		 parse->preproc_pragmas.raw_include = read_pragma_onoff( parse );
+	  }
+	  else
+	  {
+	     p_diag( parse, DIAG_POS_ERR, &parse->token->pos, "unexpected pragma %s, expected include or define", text );
          p_bail( parse );
-      }
+	  }
    }
    else
    {
