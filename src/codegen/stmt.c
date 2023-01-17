@@ -138,8 +138,7 @@ static void write_runtime_assert( struct codegen* codegen,
    struct indexed_string* string = t_intern_string( codegen->task,
       MSG_COLOR, sizeof( MSG_COLOR ) );
    string->used = true;
-   c_append_string( codegen, string );
-   c_pcd( codegen, PCD_PUSHNUMBER, string->index_runtime );
+   c_push_string( codegen, string );
    c_pcd( codegen, PCD_PRINTSTRING );
    #undef RED
    // Print file.
