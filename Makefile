@@ -1,6 +1,6 @@
 # bcc Makefile.
 
-EXE=bcc
+EXE=zt-bcc
 BUILD_DIR=build
 CC=gcc
 INCLUDE=-Isrc -I src/parse
