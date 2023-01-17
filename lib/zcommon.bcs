@@ -305,6 +305,7 @@ enum {
    APROP_MAXDROPOFFHEIGHT,
    APROP_DAMAGETYPE,
    APROP_SOUNDCLASS,
+   APROP_FRIENDLYSEEBLOCKS,
 
    // Eternity.
    APROP_COUNTER0 = 100,
@@ -741,7 +742,9 @@ enum {
 
 enum {
    SDF_ABSANGLE = 0x1,
-   SDF_PERMANENT = 0x2
+   SDF_PERMANENT = 0x2,
+   SDF_FIXED_ZOFF = 0x4,
+   SDF_FIXED_DISTANCE  = 0x8
 };
 
 enum {
@@ -994,7 +997,34 @@ enum {
    BLOCKF_USE = 0x80,
    BLOCKF_SIGHT = 0x100,
    BLOCKF_HITSCAN = 0x200,
-   BLOCKF_SOUND = 0x400
+   BLOCKF_SOUND = 0x400,
+   BLOCKF_LANDMONSTERS = 0x800
+};
+
+enum
+{
+   AMLF_SECRET = 0x1,
+   AMLF_DONTDRAW = 0x2,
+   AMLF_MAPPED = 0x4,
+   AMLF_REVEALED = 0x8
+};
+
+enum
+{
+   AMLS_DEFAULT,
+   AMLS_ONESIDED,
+   AMLS_TWOSIDED,
+   AMLS_FLOORDIFF,
+   AMLS_CEILINGDIFF,
+   AMLS_EXTRAFLOOR,
+   AMLS_SPECIAL,
+   AMLS_SECRET,
+   AMLS_NOTSEEN,
+   AMLS_LOCKED,
+   AMLS_INTRATELEPORT,
+   AMLS_INTERTELEPORT,
+   AMLS_UNEXPLOREDSECRET,
+   AMLS_PORTAL
 };
 
 enum {
@@ -1181,7 +1211,6 @@ enum {
    TM_WEEKDAY
 };
 
-//New 3.1 defines
 enum {
    SCORE_FRAGS,
    SCORE_POINTS,
@@ -1204,6 +1233,30 @@ enum {
    AAPTR_DAMAGE_SOURCE    = 0x10000000,
    AAPTR_DAMAGE_INFLICTOR = 0x40000000,
    AAPTR_DAMAGE_TARGET    = 0x80000000
+};
+
+enum {
+   POBJ_FLAG_CRUSH = 0x1,
+   POBJ_FLAG_HURT_ON_TOUCH = 0x2,
+   POBJ_FLAG_NO_CARRY_THINGS = 0x4,
+   POBJ_FLAG_NO_ANGLE_CHANGE = 0x8,
+   POBJ_FLAG_SIDE_CRUSH = 0x16
+};
+
+enum {
+   POBJ_FLAGS_CLEAR,
+   POBJ_FLAGS_SET,
+   POBJ_FLAGS_REPLACE = -1
+};
+
+enum {
+   POBJ_MOVE_NORMAL,
+   POBJ_MOVE_OVERRIDE = 0x1,
+   POBJ_MOVE_NOLINK = 0x2,
+   POBJ_MOVE_INDROT = 0x4,
+   POBJ_MOVE_POANGLE = 0x8,
+   POBJ_MOVE_MIRRORED = 0x16,
+   POBJ_MOVE_PERPETUAL = 0x32
 };
 
 enum { INT_MIN = -INT_MAX - 1 };
@@ -1477,6 +1530,7 @@ special
 280:Ceiling_MoveToValueAndCrush(int,int,int,int;int):int,
 281:Line_SetAutomapFlags(int,int,int):int,
 282:Line_SetAutomapStyle(int,int):int,
+283:Polyobj_StopSound(int):int,
 
 //Eternity
 300:Portal_Define(int,int,int,int,int):int:0,
@@ -1507,11 +1561,11 @@ special
 -22:CheckActorProperty(int,int,raw):bool,
 -23:SetActorVelocity(int,fixed,fixed,fixed,bool,bool):bool,
 -24:SetUserVariable(int,str,raw):void,
--25:GetUserVariable(int,str),
+-25:GetUserVariable(int,str):int,
 -26:Radius_Quake2(int,int,int,int,int,str):void,
 -27:CheckActorClass(int,str):bool,
 -28:SetUserArray(int,str,int,raw):void,
--29:GetUserArray(int,str,int),
+-29:GetUserArray(int,str,int):int,
 -30:SoundSequenceOnActor(int,str):void,
 -31:SoundSequenceOnSector(int,str,int):void,
 -32:SoundSequenceOnPolyobj(int,str):void,
@@ -1619,8 +1673,6 @@ special
 -129:Strftime(int,str;bool):str,
 -130:SetDeadSpectator(int,bool):bool,
 -131:SetActivatorToPlayer(int):bool,
-
-//New 3.1 functions
 -132:SetCurrentGamemode(str):int,
 -133:GetCurrentGamemode():str,
 -134:SetGamemodeLimit(int, int):int,
@@ -1658,7 +1710,7 @@ special
    raw,raw,raw,raw,raw,raw,raw,raw,raw,raw,raw,raw,raw,raw,raw,
    raw,raw,raw,raw,raw,raw,raw,raw,raw,raw,raw,raw,raw,raw,raw,
    raw,raw,raw,raw,raw,raw,raw,raw,raw,raw,raw,raw,raw,raw,raw,
-   raw,raw,raw),
+   raw,raw,raw):int,
 -211:StartSlideShow(str),
 -212:GetSectorHealth(int,int):int,
 -213:GetLineHealth(int):int,
@@ -1672,6 +1724,20 @@ special
 // GZDoom.
 -400:SetSectorGlow(int,int,int,int,int,int):void,
 -401:SetFogDensity(int,int):void,
+
+// K8Vavoom.
+-800:Polyobj_MoveEx(int, int, int, int, int, int, int):bool,
+-801:Polyobj_MoveToEx(int, int, int, int, int, int):bool,
+-802:Polyobj_MoveToSpotEx(int, int, int, int):bool,
+-803:GetPolyobjZ(int):fixed,
+-804:Polyobj_GetFlagsEx(int):int,
+-805:Polyobj_SetFlagsEx(int, int, int):int,
+-806:Polyobj_IsBusy(int):int,
+-807:Polyobj_GetAngle(int):fixed,
+-808:Polyobj_MoveRotateEx(int, int, int, int, int, int, fixed, int):bool,
+-809:Polyobj_MoveToRotateEx(int, int, int, int, int, fixed, int):bool,
+-810:Polyobj_MoveToSpotRotateEx(int, int, int, fixed, int):bool,
+-811:Polyobj_RotateEx(int, int, fixed, int):bool,
 
 // ZDaemon.
 -19620:GetTeamScore(int):int,
