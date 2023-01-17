@@ -1,0 +1,5 @@
+List of known bugs:
+-Function references can't be reliably initialized on module-scope variables. Arrays are fine.
+	Unlikely to be fixed outside of converting such definitions into arrays implicitly, as ZDACS
+	doesn't have any chunk for tagging function pointers on variables, only arrays.
+	
