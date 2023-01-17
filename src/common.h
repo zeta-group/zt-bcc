@@ -131,6 +131,8 @@ struct options {
    } cache;
 };
 
+int bcc_stricmp (const char *s1, const char *s2);
+
 #if OS_WINDOWS
 
 #include <windows.h>
@@ -155,8 +157,6 @@ struct fs_query {
 struct fs_timestamp {
    time_t value;
 };
-
-#define strcasecmp _stricmp
 
 #else
 

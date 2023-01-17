@@ -1,6 +1,7 @@
 #include <string.h>
 #include <ctype.h>
 
+#include "../../common.h"
 #include "../phase.h"
 
 #define CMDLINEMACRO_TEXT "1"
@@ -95,21 +96,6 @@ static void read_endif( struct parse* parse, struct endif_search* search,
 static void read_pragma( struct parse* parse );
 static void skip_section( struct parse* parse, struct pos* pos );
 static void read_region( struct parse* parse );
-
-static int bcc_stricmp (const char *s1, const char *s2)
-{
-   unsigned char c1, c2;
-   
-   do {
-      c1 = (unsigned char) tolower(*s1);
-      c2 = (unsigned char) tolower(*s2);
-
-      s1++;
-      s2++;
-   } while ( (c1 == c2) && (c2 != '\0') );
-   
-   return c1 - c2;
-}
 
 bool p_read_dirc( struct parse* parse ) {
    enum dirc dirc = identify_dirc( parse );

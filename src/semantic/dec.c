@@ -1,6 +1,7 @@
 #include <string.h>
 #include <limits.h>
 
+#include "../common.h"
 #include "phase.h"
 
 #define SCRIPT_MIN_NUM 0
@@ -2365,7 +2366,7 @@ static void test_nonzero_script_number( struct semantic* semantic,
             "script name not a valid string" );
          s_bail( semantic );
       }
-      if ( strcasecmp( string->value, "none" ) == 0 ) {
+      if ( bcc_stricmp( string->value, "none" ) == 0 ) {
          s_diag( semantic, DIAG_POS_ERR, &script->number->pos,
             "\"%s\" is a reserved script name", string->value );
          s_bail( semantic );

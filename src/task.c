@@ -128,11 +128,11 @@ void t_init( struct task* task, struct options* options, jmp_buf* bail,
    add_internal_file( task, "<compiler>" );
    add_internal_file( task, "<command-line>" );
    task->compiler_dir = compiler_dir;
-   // Setup BCS-specific directories. TODO: Remove the others
-   str_init( &task->bcs_lib_dir );
-   str_append( &task->bcs_lib_dir, compiler_dir->value );
-   str_append( &task->bcs_lib_dir, OS_PATHSEP );
-   str_append( &task->bcs_lib_dir, "lib" );
+   // Setup default library include directory.
+   str_init( &task->lib_dir );
+   str_append( &task->lib_dir, compiler_dir->value );
+   str_append( &task->lib_dir, OS_PATHSEP );
+   str_append( &task->lib_dir, "lib" );
 
    list_init( &task->structures );
 }
@@ -531,14 +531,13 @@ bool t_same_pos( struct pos* a, struct pos* b ) {
       a->column == b->column );
 }
 
-void t_init_file_query( struct file_query* query, const char* lang_dir,
-   struct file_entry* offset_file, const char* path ) {
+void t_init_file_query( struct file_query* query, struct file_entry* offset_file,
+   const char* path ) {
    query->given_path = path;
    query->path = NULL;
    // NOTE: .fileid NOT initialized.
    query->file = NULL;
    query->offset_file = offset_file;
-   query->lang_dir = lang_dir;
    query->success = false;
 }
 
@@ -601,15 +600,13 @@ static bool identify_file_relative( struct task* task,
       }
       list_next( &i );
    }
-   // Try language-specific directories.
-   if ( query->lang_dir ) {
-      str_clear( query->path );
-      str_append( query->path, query->lang_dir );
-      str_append( query->path, OS_PATHSEP );
-      str_append( query->path, query->given_path );
-      if ( c_read_fileid( &query->fileid, query->path->value ) ) {
-         return true;
-      }
+   // Try default include directory.
+   str_clear( query->path );
+   str_append( query->path, task->lib_dir.value );
+   str_append( query->path, OS_PATHSEP );
+   str_append( query->path, query->given_path );
+   if ( c_read_fileid( &query->fileid, query->path->value ) ) {
+      return true;
    }
    return false;
 }
@@ -1139,10 +1136,6 @@ void t_update_err_file_dir( struct task* task, const char* path ) {
       dir->value[ dir->length - 1 ] = 0;
       --dir->length;
    }
-}
-
-const char* t_get_lang_lib_dir( struct task* task ) {
-   return task->bcs_lib_dir.value;
 }
 
 struct script* t_alloc_script( void ) {

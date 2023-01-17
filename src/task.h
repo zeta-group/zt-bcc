@@ -25,7 +25,6 @@ struct file_query {
    struct fileid fileid;
    struct file_entry* file;
    struct file_entry* offset_file;
-   const char* lang_dir;
    bool success;
 };
 
@@ -1265,7 +1264,7 @@ struct task {
    struct str err_file_dir;
    struct list include_history;
    struct str* compiler_dir;
-   struct str bcs_lib_dir;
+   struct str lib_dir;
    // The file printed in the last diagnostic.
    struct include_history_entry* last_diag_file;
    // All structs found during compilation, including local structs and structs
@@ -1299,8 +1298,8 @@ void t_decode_pos( struct task* task, struct pos* pos, const char** file,
    int* line, int* column );
 const char* t_decode_pos_file( struct task* task, struct pos* pos );
 void t_init_object( struct object* object, int node_type );
-void t_init_file_query( struct file_query* query, const char* lang_dir,
-   struct file_entry* offset_file, const char* path );
+void t_init_file_query( struct file_query* query, struct file_entry* offset_file,
+   const char* path );
 void t_find_file( struct task* task, struct file_query* query );
 struct library* t_add_library( struct task* task );
 struct name* t_create_name( void );
@@ -1350,7 +1349,6 @@ struct include_history_entry* t_alloc_include_history_entry(
    struct task* task );
 struct include_history_entry* t_decode_include_history_entry(
    struct task* task, int id );
-const char* t_get_lang_lib_dir( struct task* task );
 struct script* t_alloc_script( void );
 
 #endif

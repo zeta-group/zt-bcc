@@ -736,3 +736,19 @@ void fs_get_file_contents( const char* path, struct file_contents* contents ) {
    contents->obtained = true;
    contents->err = 0;
 }
+
+// stricmp/strcasecmp
+int bcc_stricmp (const char *s1, const char *s2)
+{
+   unsigned char c1, c2;
+   
+   do {
+      c1 = (unsigned char) tolower(*s1);
+      c2 = (unsigned char) tolower(*s2);
+
+      s1++;
+      s2++;
+   } while ( (c1 == c2) && (c2 != '\0') );
+   
+   return c1 - c2;
+}

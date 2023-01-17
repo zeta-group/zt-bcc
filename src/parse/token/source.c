@@ -3,16 +3,14 @@
 #include <ctype.h>
 #include <errno.h>
 
+#include "common.h"
 #include "../phase.h"
-
-//TODO: fix lang_dir
 
 enum { LINE_OFFSET = 1 };
 enum { ACC_EOF_CHARACTER = 127 };
 
 struct request {
    const char* given_path;
-   const char* lang_dir;
    struct file_entry* file;
    struct file_entry* offset_file;
    struct source* source;
@@ -27,7 +25,7 @@ static void init_request( struct request* request,
    struct file_entry* offset_file, const char* path );
 static void init_request_module( struct request* request,
    struct file_entry* file );
-static void add_lang_dir( struct parse* parse, struct request* request );
+static void check_implicit_ext( struct parse* parse, struct request* request );
 static void load_source( struct parse* parse, struct request* request );
 static void find_source( struct parse* parse, struct request* request );
 static bool source_loading( struct parse* parse, struct request* request );
@@ -91,7 +89,7 @@ struct file_entry* p_find_module_file( struct parse* parse,
    struct library* importing_module, const char* path ) {
    struct request request;
    init_request( &request, importing_module->file, path );
-   add_lang_dir( parse, &request );
+   check_implicit_ext( parse, &request );
    find_source( parse, &request );
    return request.file;
 }
@@ -100,7 +98,7 @@ void p_load_included_source( struct parse* parse, const char* file_path,
    struct pos* pos ) {
    struct request request;
    init_request( &request, parse->source->file, file_path );
-   add_lang_dir( parse, &request );
+   check_implicit_ext( parse, &request );
    load_source( parse, &request );
    if ( request.source ) {
       append_file( parse->lib, request.file );
@@ -153,7 +151,6 @@ static void append_file( struct library* lib, struct file_entry* file ) {
 static void init_request( struct request* request,
    struct file_entry* offset_file, const char* path ) {
    request->given_path = path;
-   request->lang_dir = NULL;
    request->file = NULL;
    request->offset_file = offset_file;
    request->source = NULL;
@@ -169,22 +166,10 @@ static void init_request_module( struct request* request,
    request->file = file;
 }
 
-//TODO: fixme
-static void add_lang_dir( struct parse* parse, struct request* request ) {
-   //const char* ext = c_get_file_ext( request->given_path );
-   //if ( strcasecmp( ext, "bcs" ) == 0 ) {
-      request->lang_dir = t_get_lang_lib_dir( parse->task );
-   /*}
-   else if ( strcasecmp( ext, "h" ) == 0 && parse->lang == LANG_BCS ) {
-      request->lang_dir = t_get_lang_lib_dir( parse->task, LANG_BCS );
+static void check_implicit_ext( struct parse* parse, struct request* request ) {
+   if ( bcc_stricmp( c_get_file_ext( request->given_path ), "h" ) == 0 ) {
       request->implicit_bcs_ext = true;
    }
-   else if ( strcasecmp( ext, "acs" ) == 0 ) {
-      request->lang_dir = t_get_lang_lib_dir( parse->task, LANG_ACS );
-   }
-   else {
-      request->lang_dir = t_get_lang_lib_dir( parse->task, parse->lang );
-   }*/
 }
 
 static void load_source( struct parse* parse, struct request* request ) {
@@ -210,7 +195,6 @@ static void find_source( struct parse* parse, struct request* request ) {
       str_append( &path, ".bcs" );
       struct file_query query;
       t_init_file_query( &query,
-         request->lang_dir,
          request->offset_file,
          path.value );
       t_find_file( parse->task, &query );
@@ -224,7 +208,6 @@ static void find_source( struct parse* parse, struct request* request ) {
    }
    struct file_query query;
    t_init_file_query( &query,
-      request->lang_dir,
       request->offset_file,
       request->given_path );
    t_find_file( parse->task, &query );

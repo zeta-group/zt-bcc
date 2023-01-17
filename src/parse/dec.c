@@ -1966,15 +1966,9 @@ static void read_param_ref( struct parse* parse, struct param* param ) {
    param->ref = ref.head;
 }
 
-// TODO: fix weird
 static void read_param_name( struct parse* parse, struct param* param ) {
    // In BCS, the name is optional.
    if ( parse->tk == TK_ID ) {
-      /*if ( parse->tk != TK_ID ) {
-         p_unexpect_diag( parse );
-         p_unexpect_last_name( parse, NULL, "parameter name" );
-         p_bail( parse );
-      }*/
       param->name = t_extend_name( parse->ns->body, parse->tk_text );
       param->object.pos = parse->tk_pos;
       p_read_tk( parse );

@@ -5,8 +5,7 @@ BUILD_DIR=build
 CC=gcc
 INCLUDE=-Isrc -I src/parse
 OPTIONS=-Wall -Werror -Wno-unused -std=c99 -pedantic -Wstrict-aliasing \
-	-Wstrict-aliasing=2 -Wmissing-field-initializers -D_BSD_SOURCE \
-	-D_DEFAULT_SOURCE $(INCLUDE)
+	-Wstrict-aliasing=2 -Wmissing-field-initializers $(INCLUDE)
 VERSION_FILE=$(BUILD_DIR)/version.c
 
 .PHONY: all pre-build dev dev-pre-build clean
