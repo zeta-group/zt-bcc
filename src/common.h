@@ -114,14 +114,12 @@ struct options {
    const char* source_file;
    const char* object_file;
    int tab_size;
-   int lang;
    bool acc_err;
    bool acc_stats;
    bool one_column;
    bool help;
    bool preprocess;
    bool write_asserts;
-   bool lang_specified;
    bool show_version;
    bool slade_mode;
    struct {

@@ -128,16 +128,11 @@ void t_init( struct task* task, struct options* options, jmp_buf* bail,
    add_internal_file( task, "<compiler>" );
    add_internal_file( task, "<command-line>" );
    task->compiler_dir = compiler_dir;
-   // Setup BCS-specific directories.
+   // Setup BCS-specific directories. TODO: Remove the others
    str_init( &task->bcs_lib_dir );
    str_append( &task->bcs_lib_dir, compiler_dir->value );
    str_append( &task->bcs_lib_dir, OS_PATHSEP );
    str_append( &task->bcs_lib_dir, "lib" );
-   // Setup ACS/ACS95-specific directories.
-   str_init( &task->acs_lib_dir );
-   str_append( &task->acs_lib_dir, compiler_dir->value );
-   str_append( &task->acs_lib_dir, OS_PATHSEP );
-   str_append( &task->acs_lib_dir, "lib/acs" );
 
    list_init( &task->structures );
 }
@@ -686,7 +681,6 @@ struct library* t_add_library( struct task* task ) {
    lib->file_pos.id = 0;
    lib->id = list_size( &task->libraries );
    lib->format = FORMAT_LITTLE_E;
-   lib->lang = LANG_BCS;
    lib->importable = false;
    lib->imported = false;
    lib->encrypt_str = false;
@@ -1050,21 +1044,11 @@ int t_dim_size( struct dim* dim ) {
    return dim->length * dim->element_size;
 }
 
-const struct lang_limits* t_get_lang_limits( int lang ) {
-   static const struct lang_limits acs =
-      { MAX_WORLD_VARS, MAX_GLOBAL_VARS, 1000, 4, 32768, 32767, 31 };
-   static const struct lang_limits acs95 =
-      { 64, 0, 64, 3, 128, 255, 31 };
-   static const struct lang_limits bcs =
+const struct lang_limits* t_get_lang_limits( void ) {
+   static const struct lang_limits limits =
       { MAX_WORLD_VARS, MAX_GLOBAL_VARS, 1000, 4, 32768, 32767, 32768 };
-   switch ( lang ) {
-   case LANG_ACS:
-      return &acs;
-   case LANG_ACS95:
-      return &acs95;
-   default:
-      return &bcs;
-   }
+	  
+   return &limits;
 }
 
 const char* t_get_storage_name( int storage ) {
@@ -1157,16 +1141,8 @@ void t_update_err_file_dir( struct task* task, const char* path ) {
    }
 }
 
-const char* t_get_lang_lib_dir( struct task* task, int lang ) {
-   switch ( lang ) {
-   case LANG_BCS:
-      return task->bcs_lib_dir.value;
-   case LANG_ACS:
-   case LANG_ACS95:
-      return task->acs_lib_dir.value;
-   default:
-      return NULL;
-   }
+const char* t_get_lang_lib_dir( struct task* task ) {
+   return task->bcs_lib_dir.value;
 }
 
 struct script* t_alloc_script( void ) {

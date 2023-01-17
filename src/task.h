@@ -1208,11 +1208,6 @@ struct library {
       FORMAT_BIG_E,
       FORMAT_LITTLE_E
    } format;
-   enum {
-      LANG_ACS,
-      LANG_ACS95,
-      LANG_BCS
-   } lang;
    bool importable;
    bool imported;
    bool encrypt_str;
@@ -1271,7 +1266,6 @@ struct task {
    struct list include_history;
    struct str* compiler_dir;
    struct str bcs_lib_dir;
-   struct str acs_lib_dir;
    // The file printed in the last diagnostic.
    struct include_history_entry* last_diag_file;
    // All structs found during compilation, including local structs and structs
@@ -1336,11 +1330,11 @@ struct param* t_alloc_param( void );
 struct format_item* t_alloc_format_item( void );
 struct call* t_alloc_call( void );
 int t_dim_size( struct dim* dim );
-const struct lang_limits* t_get_lang_limits( int lang );
+const struct lang_limits* t_get_lang_limits( void );
 const char* t_get_storage_name( int storage );
 struct literal* t_alloc_literal( void );
 struct expr* t_alloc_expr( void );
-void t_create_builtins( struct task* task, int lang );
+void t_create_builtins( struct task* task );
 struct indexed_string_usage* t_alloc_indexed_string_usage( void );
 void t_init_pos( struct pos* pos, int id, int line, int column );
 void t_init_pos_id( struct pos* pos, int id );
@@ -1356,7 +1350,7 @@ struct include_history_entry* t_alloc_include_history_entry(
    struct task* task );
 struct include_history_entry* t_decode_include_history_entry(
    struct task* task, int id );
-const char* t_get_lang_lib_dir( struct task* task, int lang );
+const char* t_get_lang_lib_dir( struct task* task );
 struct script* t_alloc_script( void );
 
 #endif

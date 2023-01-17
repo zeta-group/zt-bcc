@@ -55,7 +55,6 @@ struct special_reading {
    bool optional;
 };
 
-static bool is_dec_bcs( struct parse* parse );
 static void read_local_var( struct parse* parse, struct dec* dec );
 static void read_dec( struct parse* parse, struct dec* dec );
 static void read_enum( struct parse* parse, struct dec* dec );
@@ -179,27 +178,6 @@ static void read_special_return_type( struct parse* parse,
    struct special_reading* reading );
 
 bool p_is_dec( struct parse* parse ) {
-   switch ( parse->lang ) {
-   case LANG_ACS:
-   case LANG_ACS95:
-      switch ( parse->tk ) {
-      case TK_INT:
-      case TK_BOOL:
-      case TK_STR:
-      case TK_VOID:
-      case TK_WORLD:
-      case TK_GLOBAL:
-      case TK_STATIC:
-         return true;
-      default:
-         return false;
-      }
-   default:
-      return is_dec_bcs( parse );
-   }
-}
-
-static bool is_dec_bcs( struct parse* parse ) {
    if ( parse->tk == TK_STATIC ) {
       // The `static` keyword is also used by static-assert.
       return ( p_peek( parse ) != TK_ASSERT );
@@ -694,13 +672,6 @@ static void read_visibility( struct parse* parse, struct dec* dec ) {
          dec->static_qual = true;
          dec->static_qual_pos = parse->tk_pos;
          p_read_tk( parse );
-         switch ( parse->lang ) {
-         case LANG_ACS:
-            dec->object = DECOBJ_VAR;
-            break;
-         default:
-            break;
-         }
       }
    }
    read_object( parse, dec );
@@ -716,16 +687,6 @@ static void read_object( struct parse* parse, struct dec* dec ) {
       if ( parse->tk == TK_FUNCTION ) {
          dec->object = DECOBJ_FUNC;
          p_read_tk( parse );
-      }
-      else {
-         switch ( parse->lang ) {
-         case LANG_ACS:
-         case LANG_ACS95:
-            dec->object = DECOBJ_VAR;
-            break;
-         default:
-            break;
-         }
       }
    }
    // Storage.
@@ -831,93 +792,61 @@ static void init_spec_reading( struct spec_reading* spec, int area ) {
 
 static void read_spec( struct parse* parse, struct spec_reading* spec ) {
    spec->pos = parse->tk_pos;
-   switch ( parse->lang ) {
-   case LANG_ACS:
-      switch ( parse->tk ) {
-      case TK_INT:
-      case TK_BOOL:
-      case TK_STR:
-         spec->type = SPEC_RAW;
-         p_read_tk( parse );
-         break;
-      case TK_VOID:
-         spec->type = SPEC_VOID;
-         p_read_tk( parse );
-         break;
-      default:
-         missing_spec( parse, spec );
-         p_bail( parse );
-      }
+   switch ( parse->tk ) {
+   case TK_RAW:
+      spec->type = SPEC_RAW;
+      p_read_tk( parse );
       break;
-   case LANG_ACS95:
-      switch ( parse->tk ) {
-      case TK_INT:
-      case TK_STR:
-         spec->type = SPEC_RAW;
-         p_read_tk( parse );
-         break;
-      default:
-         missing_spec( parse, spec );
-         p_bail( parse );
-      }
+   case TK_INT:
+      spec->type = SPEC_INT;
+      p_read_tk( parse );
       break;
-   case LANG_BCS:
-      switch ( parse->tk ) {
-      case TK_RAW:
-         spec->type = SPEC_RAW;
-         p_read_tk( parse );
-         break;
-      case TK_INT:
-         spec->type = SPEC_INT;
-         p_read_tk( parse );
-         break;
-      case TK_FIXED:
-         spec->type = SPEC_FIXED;
-         p_read_tk( parse );
-         break;
-      case TK_BOOL:
-         spec->type = SPEC_BOOL;
-         p_read_tk( parse );
-         break;
-      case TK_STR:
-         spec->type = SPEC_STR;
-         p_read_tk( parse );
-         break;
-      case TK_VOID:
-         spec->type = SPEC_VOID;
-         p_read_tk( parse );
-         break;
-      case TK_ENUM:
-         p_read_tk( parse );
-         spec->type = SPEC_NAME + SPEC_ENUM;
-         if ( p_peek_type_path( parse ) ) {
-            spec->path = p_read_type_path( parse );
-         }
-         else {
-            spec->path = p_read_path( parse );
-         }
-         break;
-      case TK_STRUCT:
-         p_read_tk( parse );
-         spec->type = SPEC_NAME + SPEC_STRUCT;
-         if ( p_peek_type_path( parse ) ) {
-            spec->path = p_read_type_path( parse );
-         }
-         else {
-            spec->path = p_read_path( parse );
-         }
-         break;
-      case TK_ID:
-      case TK_UPMOST:
-      case TK_NAMESPACE:
-      case TK_TYPENAME:
-         spec->type = SPEC_NAME;
+   case TK_FIXED:
+      spec->type = SPEC_FIXED;
+      p_read_tk( parse );
+      break;
+   case TK_BOOL:
+      spec->type = SPEC_BOOL;
+      p_read_tk( parse );
+      break;
+   case TK_STR:
+      spec->type = SPEC_STR;
+      p_read_tk( parse );
+      break;
+   case TK_VOID:
+      spec->type = SPEC_VOID;
+      p_read_tk( parse );
+      break;
+   case TK_ENUM:
+      p_read_tk( parse );
+      spec->type = SPEC_NAME + SPEC_ENUM;
+      if ( p_peek_type_path( parse ) ) {
          spec->path = p_read_type_path( parse );
-         break;
-      default:
-         missing_spec( parse, spec );
-         p_bail( parse );
       }
+      else {
+         spec->path = p_read_path( parse );
+      }
+      break;
+   case TK_STRUCT:
+      p_read_tk( parse );
+      spec->type = SPEC_NAME + SPEC_STRUCT;
+      if ( p_peek_type_path( parse ) ) {
+         spec->path = p_read_type_path( parse );
+      }
+      else {
+         spec->path = p_read_path( parse );
+      }
+      break;
+   case TK_ID:
+   case TK_UPMOST:
+   case TK_NAMESPACE:
+   case TK_TYPENAME:
+      spec->type = SPEC_NAME;
+      spec->path = p_read_type_path( parse );
+      break;
+   default:
+      missing_spec( parse, spec );
+      p_bail( parse );
    }
 }
 
@@ -940,12 +869,10 @@ static void missing_spec( struct parse* parse, struct spec_reading* spec ) {
 
 static void read_after_spec( struct parse* parse, struct dec* dec ) {
    // Reference.
-   if ( parse->lang == LANG_BCS ) {
-      struct ref_reading ref;
-      init_ref_reading( &ref );
-      read_ref( parse, &ref );
-      dec->ref = ref.head;
-   }
+   struct ref_reading ref;
+   init_ref_reading( &ref );
+   read_ref( parse, &ref );
+   dec->ref = ref.head;
    read_after_ref( parse, dec );
 }
 
@@ -1165,12 +1092,8 @@ static void read_instance( struct parse* parse, struct dec* dec ) {
    else {
       read_storage_index( parse, dec );
       read_name( parse, dec );
-      if (
-         parse->lang == LANG_ACS ||
-         parse->lang == LANG_BCS ) {
-         read_dim( parse, dec );
-         read_var_init( parse, dec );
-      }
+      read_dim( parse, dec );
+      read_var_init( parse, dec );
       test_var( parse, dec );
       add_var( parse, dec );
    }
@@ -1355,16 +1278,9 @@ static void read_init( struct parse* parse, struct dec* dec ) {
       dec->initz.specified = true;
       p_read_tk( parse );
       // Multi-value initializer.
-      switch ( parse->lang ) {
-      case LANG_ACS:
-      case LANG_BCS:
-         if ( parse->tk == TK_BRACE_L ) {
-            read_multi_init( parse, dec, NULL );
-            return;
-         }
-         break;
-      default:
-         break;
+      if ( parse->tk == TK_BRACE_L ) {
+         read_multi_init( parse, dec, NULL );
+         return;
       }
       // Single-value initializer.
       read_single_init( parse, dec );
@@ -1929,7 +1845,7 @@ static void read_func( struct parse* parse, struct dec* dec ) {
    }
    // Function.
    else {
-      if ( parse->tk == TK_SEMICOLON && parse->lang == LANG_BCS ) {
+      if ( parse->tk == TK_SEMICOLON ) {
          func->impl = t_alloc_func_user();
          p_read_tk( parse );
       }
@@ -1987,7 +1903,7 @@ static struct func* alloc_func( struct parse* parse, struct dec* dec ) {
 
 static void read_func_param_list( struct parse* parse, struct func* func ) {
    // In BCS, the parameter list can be empty. The `void` keyword is optional.
-   if ( ! ( parse->lang == LANG_BCS && parse->tk == TK_PAREN_R ) ) {
+   if ( parse->tk != TK_PAREN_R ) {
       struct params params;
       init_params( &params );
       read_param_list( parse, &params );
@@ -2007,8 +1923,7 @@ static void init_params( struct params* params ) {
 static void read_param_list( struct parse* parse, struct params* params ) {
    // The reason we peek is because the `void` keyword might be part of a
    // function-reference parameter. We don't want to leave prematurely.
-   if ( parse->tk == TK_VOID && ! ( parse->lang == LANG_BCS &&
-      p_peek( parse ) != TK_PAREN_R ) ) {
+   if ( parse->tk == TK_VOID && ( p_peek( parse ) == TK_PAREN_R ) ) {
       p_read_tk( parse );
    }
    else {
@@ -2036,59 +1951,30 @@ static void read_param( struct parse* parse, struct params* params ) {
 
 static void read_param_spec( struct parse* parse, struct params* params,
    struct param* param ) {
-   switch ( parse->lang ) {
-      struct spec_reading spec;
-   case LANG_ACS:
-      switch ( parse->tk ) {
-      case TK_INT:
-      case TK_BOOL:
-      case TK_STR:
-         param->spec = SPEC_RAW;
-         param->original_spec = SPEC_RAW;
-         p_read_tk( parse );
-         break;
-      default:
-         p_unexpect_diag( parse );
-         if ( params->node ) {
-            p_unexpect_last_name( parse, NULL, "parameter type" );
-         }
-         else {
-            p_unexpect_name( parse, NULL, "parameter type" );
-            p_unexpect_last( parse, NULL, TK_VOID );
-         }
-         p_bail( parse );
-      }
-      break;
-   default:
-      init_spec_reading( &spec, AREA_VAR );
-      read_spec( parse, &spec );
-      param->path = spec.path;
-      param->spec = spec.type;
-      param->original_spec = spec.type;
-   }
+   struct spec_reading spec;
+   init_spec_reading( &spec, AREA_VAR );
+   read_spec( parse, &spec );
+   param->path = spec.path;
+   param->spec = spec.type;
+   param->original_spec = spec.type;
 }
 
 static void read_param_ref( struct parse* parse, struct param* param ) {
-   switch ( parse->lang ) {
-      struct ref_reading ref;
-   case LANG_BCS:
-      init_ref_reading( &ref );
-      read_ref( parse, &ref );
-      param->ref = ref.head;
-      break;
-   default:
-      break;
-   }
+   struct ref_reading ref;
+   init_ref_reading( &ref );
+   read_ref( parse, &ref );
+   param->ref = ref.head;
 }
 
+// TODO: fix weird
 static void read_param_name( struct parse* parse, struct param* param ) {
    // In BCS, the name is optional.
-   if ( ! ( parse->lang == LANG_BCS && parse->tk != TK_ID ) ) {
-      if ( parse->tk != TK_ID ) {
+   if ( parse->tk == TK_ID ) {
+      /*if ( parse->tk != TK_ID ) {
          p_unexpect_diag( parse );
          p_unexpect_last_name( parse, NULL, "parameter name" );
          p_bail( parse );
-      }
+      }*/
       param->name = t_extend_name( parse->ns->body, parse->tk_text );
       param->object.pos = parse->tk_pos;
       p_read_tk( parse );
@@ -2097,18 +1983,12 @@ static void read_param_name( struct parse* parse, struct param* param ) {
 
 static void read_param_default_value( struct parse* parse,
    struct params* params, struct param* param ) {
-   switch ( parse->lang ) {
-   case LANG_BCS:
-      if ( parse->tk == TK_ASSIGN ) {
-         p_read_tk( parse );
-         struct expr_reading value;
-         p_init_expr_reading( &value, false, true, false, true );
-         p_read_expr( parse, &value );
-         param->default_value = value.output_node;
-      }
-      break;
-   default:
-      break;
+   if ( parse->tk == TK_ASSIGN ) {
+      p_read_tk( parse );
+      struct expr_reading value;
+      p_init_expr_reading( &value, false, true, false, true );
+      p_read_expr( parse, &value );
+      param->default_value = value.output_node;
    }
 }
 
@@ -2170,11 +2050,7 @@ void p_read_script( struct parse* parse ) {
    read_script_number( parse, &reading );
    read_script_param_paren( parse, &reading );
    read_script_type( parse, &reading );
-   if (
-      parse->lang == LANG_ACS ||
-      parse->lang == LANG_BCS ) {
-      read_script_flag( parse, &reading );
-   }
+   read_script_flag( parse, &reading );
    read_script_after_flag( parse, &reading );
 }
 
@@ -2192,8 +2068,7 @@ static void init_script_reading( struct script_reading* reading,
 
 static void read_script_number( struct parse* parse,
    struct script_reading* reading ) {
-   if ( ( parse->lang == LANG_ACS || parse->lang == LANG_BCS ) &&
-      parse->tk == TK_SHIFT_L ) {
+   if ( parse->tk == TK_SHIFT_L ) {
       p_read_tk( parse );
       // The token between the `<<` and `>>` tokens must be the digit `0`.
       if ( ! ( parse->tk == TK_LIT_DECIMAL && parse->tk_text[ 0 ] == '0' &&
@@ -2205,17 +2080,6 @@ static void read_script_number( struct parse* parse,
       reading->number = parse->task->raw0_expr;
       p_read_tk( parse );
       p_test_tk( parse, TK_SHIFT_R );
-      p_read_tk( parse );
-   }
-   else if ( parse->lang == LANG_ACS && parse->tk == TK_LIT_STRING ) {
-      struct indexed_string* string = t_intern_script_name( parse->task,
-         parse->tk_text, parse->tk_length );
-      struct indexed_string_usage* usage = t_alloc_indexed_string_usage();
-      usage->string = string;
-      struct expr* expr = t_alloc_expr();
-      expr->pos = parse->tk_pos;
-      expr->root = &usage->node;
-      reading->number = expr;
       p_read_tk( parse );
    }
    else {
@@ -2235,9 +2099,7 @@ static void read_script_param_paren( struct parse* parse,
       p_test_tk( parse, TK_PAREN_L );
       p_read_tk( parse );
       // In BCS, the parameter list is optional.
-      if ( ! (
-         parse->lang == LANG_BCS &&
-         parse->tk == TK_PAREN_R ) ) {
+      if ( parse->tk != TK_PAREN_R ) {
          read_script_param_list( parse, reading );
       }
       p_test_tk( parse, TK_PAREN_R );
@@ -2268,58 +2130,34 @@ static void read_script_param( struct parse* parse,
    struct script_reading* reading ) {
    struct param* param = t_alloc_param();
    // Specifier.
-   switch ( parse->lang ) {
-   case LANG_ACS:
-   case LANG_ACS95:
-      switch ( parse->tk ) {
-      case TK_INT:
-         param->spec = SPEC_RAW;
-         p_read_tk( parse );
-         break;
-      default:
-         p_unexpect_diag( parse );
-         if ( reading->param ) {
-            p_unexpect_last( parse, &parse->tk_pos, TK_INT );
-         }
-         else {
-            p_unexpect_item( parse, &parse->tk_pos, TK_INT );
-            p_unexpect_last( parse, &parse->tk_pos, TK_VOID );
-         }
-         p_bail( parse );
-      }
+   // NOTE: TK_ID-based specifiers are not currently allowed. Maybe
+   // implement support for that since a user can create an alias to an
+   // `int` type via the `typedef` construct.
+   switch ( parse->tk ) {
+   case TK_RAW:
+      param->spec = SPEC_RAW;
+      p_read_tk( parse );
+      break;
+   case TK_INT:
+      param->spec = SPEC_INT;
+      p_read_tk( parse );
       break;
    default:
-      // NOTE: TK_ID-based specifiers are not currently allowed. Maybe
-      // implement support for that since a user can create an alias to an
-      // `int` type via the `typedef` construct.
-      switch ( parse->tk ) {
-      case TK_RAW:
-         param->spec = SPEC_RAW;
-         p_read_tk( parse );
-         break;
-      case TK_INT:
-         param->spec = SPEC_INT;
-         p_read_tk( parse );
-         break;
-      default:
-         p_unexpect_diag( parse );
-         p_unexpect_item( parse, &parse->tk_pos, TK_INT );
-         if ( reading->param ) {
-            p_unexpect_last( parse, &parse->tk_pos, TK_RAW );
-         }
-         else {
-            p_unexpect_item( parse, &parse->tk_pos, TK_RAW );
-            p_unexpect_item( parse, &parse->tk_pos, TK_VOID );
-            p_unexpect_last( parse, &parse->tk_pos, TK_PAREN_R );
-         }
-         p_bail( parse );
+      p_unexpect_diag( parse );
+      p_unexpect_item( parse, &parse->tk_pos, TK_INT );
+      if ( reading->param ) {
+         p_unexpect_last( parse, &parse->tk_pos, TK_RAW );
       }
+      else {
+         p_unexpect_item( parse, &parse->tk_pos, TK_RAW );
+         p_unexpect_item( parse, &parse->tk_pos, TK_VOID );
+         p_unexpect_last( parse, &parse->tk_pos, TK_PAREN_R );
+      }
+      p_bail( parse );
    }
    // Name.
    // In BCS, like for functions, the parameter name is optional.
-   if ( ! (
-      parse->lang == LANG_BCS &&
-      parse->tk != TK_ID ) ) {
+   if ( parse->tk == TK_ID ) {
       p_test_tk( parse, TK_ID );
       param->name = t_extend_name( parse->ns->body, parse->tk_text );
       param->object.pos = parse->tk_pos;
@@ -2340,7 +2178,7 @@ static void read_script_type( struct parse* parse,
    struct script_reading* reading ) {
    enum tk tk = parse->tk;
    // In BCS, script types are context-sensitive keywords.
-   if ( parse->lang == LANG_BCS && parse->tk == TK_ID ) {
+   if ( parse->tk == TK_ID ) {
       // The keywords are ordered based on potential usage, because a linear
       // search is used to find the keyword.
       static const struct {
@@ -2391,12 +2229,6 @@ static void read_script_type( struct parse* parse,
    }
    // Correct number of parameters need to be specified for a script type.
    if ( reading->type == SCRIPT_TYPE_CLOSED ) {
-      if ( ( parse->lang == LANG_ACS || parse->lang == LANG_ACS95 ) &&
-         ! reading->param_specified ) {
-         p_diag( parse, DIAG_POS_ERR, &reading->param_pos,
-            "script missing parameter list" );
-         p_bail( parse );
-      }
       if ( reading->num_param > parse->lang_limits->max_script_params ) {
          p_diag( parse, DIAG_POS_ERR, &reading->param_pos,
             "too many parameters in script" );
@@ -2433,12 +2265,6 @@ static void read_script_type( struct parse* parse,
       p_read_tk( parse );
    }
    else {
-      if ( parse->lang != LANG_BCS && reading->param_specified &&
-         reading->num_param == 0 ) {
-         p_diag( parse, DIAG_POS_ERR, &reading->param_pos,
-            "parameter list specified for %s-script", parse->tk_text );
-         p_bail( parse );
-      }
       if ( reading->param_specified && reading->num_param != 0 ) {
          p_diag( parse, DIAG_POS_ERR, &reading->param_pos,
             "non-empty parameter list in %s-script", parse->tk_text );
@@ -2466,38 +2292,25 @@ static const char* get_script_article( int type ) {
 
 static void read_script_flag( struct parse* parse,
    struct script_reading* reading ) {
-   // In ACS, the flags must appear in a specific order.
-   if ( parse->lang == LANG_ACS ) {
-      if ( parse->tk == TK_NET ) {
-         reading->flags |= SCRIPT_FLAG_NET;
-         p_read_tk( parse );
-      }
-      if ( parse->tk == TK_CLIENTSIDE ) {
-         reading->flags |= SCRIPT_FLAG_CLIENTSIDE;
-         p_read_tk( parse );
-      }
-   }
-   else {
-      while ( parse->tk == TK_ID ) {
-         int flag = SCRIPT_FLAG_NET;
-         // In BCS, script flags are context-sensitive keywords.
-         if ( strcmp( parse->tk_text, "net" ) != 0 ) {
-            if ( strcmp( parse->tk_text, "clientside" ) == 0 ) {
-               flag = SCRIPT_FLAG_CLIENTSIDE;
-            }
-            else {
-               break;
-            }
-         }
-         if ( ! ( reading->flags & flag ) ) {
-            reading->flags |= flag;
-            p_read_tk( parse );
+   while ( parse->tk == TK_ID ) {
+      int flag = SCRIPT_FLAG_NET;
+      // In BCS, script flags are context-sensitive keywords.
+      if ( strcmp( parse->tk_text, "net" ) != 0 ) {
+         if ( strcmp( parse->tk_text, "clientside" ) == 0 ) {
+            flag = SCRIPT_FLAG_CLIENTSIDE;
          }
          else {
-            p_diag( parse, DIAG_POS_ERR, &parse->tk_pos,
-               "duplicate %s script-flag", parse->tk_text );
-            p_bail( parse );
+            break;
          }
+      }
+      if ( ! ( reading->flags & flag ) ) {
+         reading->flags |= flag;
+         p_read_tk( parse );
+      }
+      else {
+         p_diag( parse, DIAG_POS_ERR, &parse->tk_pos,
+            "duplicate %s script-flag", parse->tk_text );
+         p_bail( parse );
       }
    }
 }
@@ -2551,38 +2364,26 @@ static struct script* add_script( struct parse* parse,
 void p_read_special_list( struct parse* parse ) {
    p_test_tk( parse, TK_SPECIAL );
    p_read_tk( parse );
-   if ( parse->lang == LANG_ACS && parse->lib->imported ) {
-      p_skip_semicolon( parse );
-   }
-   else {
-      while ( true ) {
-         read_special( parse );
-         if ( parse->tk == TK_COMMA ) {
-            p_read_tk( parse );
-         }
-         else {
-            break;
-         }
+   while ( true ) {
+      read_special( parse );
+      if ( parse->tk == TK_COMMA ) {
+         p_read_tk( parse );
       }
-      p_test_tk( parse, TK_SEMICOLON );
-      p_read_tk( parse );
+      else {
+         break;
+      }
    }
+   p_test_tk( parse, TK_SEMICOLON );
+   p_read_tk( parse );
 }
 
 static void read_special( struct parse* parse ) {
    struct special_reading reading;
    init_special_reading( &reading );
    bool minus = false;
-   switch ( parse->lang ) {
-   case LANG_ACS:
-   case LANG_BCS:
-      if ( parse->tk == TK_MINUS ) {
-         p_read_tk( parse );
-         minus = true;
-      }
-      break;
-   default:
-      break;
+   if ( parse->tk == TK_MINUS ) {
+      p_read_tk( parse );
+      minus = true;
    }
    // Special-number/function-index.
    struct func* func = t_alloc_func();
@@ -2607,15 +2408,9 @@ static void read_special( struct parse* parse ) {
    p_read_tk( parse );
    // Return type.
    int return_spec = SPEC_RAW;
-   switch ( parse->lang ) {
-   case LANG_BCS:
-      if ( parse->tk == TK_COLON ) {
-         read_special_return_type( parse, &reading );
-         return_spec = reading.return_spec;
-      }
-      break;
-   default:
-      break;
+   if ( parse->tk == TK_COLON ) {
+      read_special_return_type( parse, &reading );
+      return_spec = reading.return_spec;
    }
    func->return_spec = return_spec;
    func->original_return_spec = return_spec;
@@ -2656,14 +2451,11 @@ static void init_special_reading( struct special_reading* reading ) {
 
 static void read_special_param_dec( struct parse* parse,
    struct special_reading* reading ) {
-   if ( parse->lang == LANG_ACS || parse->lang == LANG_ACS95 ||
-      parse->tk == TK_LIT_DECIMAL ) {
+   if ( parse->tk == TK_LIT_DECIMAL ) {
       read_special_param_list_minmax( parse, reading );
    }
-   else {
-      if ( parse->tk != TK_PAREN_R ) {
-         read_special_param_list( parse, reading );
-      }
+   else if ( parse->tk != TK_PAREN_R ) {
+      read_special_param_list( parse, reading );
    }
 }
 
@@ -2676,18 +2468,11 @@ static void read_special_param_list_minmax( struct parse* parse,
    reading->max_param = p_extract_literal_value( parse );
    reading->min_param = reading->max_param;
    p_read_tk( parse );
-   switch ( parse->lang ) {
-   case LANG_ACS:
-   case LANG_BCS:
-      if ( parse->tk == TK_COMMA ) {
-         p_read_tk( parse );
-         p_test_tk( parse, TK_LIT_DECIMAL );
-         reading->max_param = p_extract_literal_value( parse );
-         p_read_tk( parse );
-      }
-      break;
-   default:
-      break;
+   if ( parse->tk == TK_COMMA ) {
+      p_read_tk( parse );
+      p_test_tk( parse, TK_LIT_DECIMAL );
+      reading->max_param = p_extract_literal_value( parse );
+      p_read_tk( parse );
    }
 }
 

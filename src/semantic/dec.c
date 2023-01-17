@@ -292,7 +292,7 @@ void s_test_enumeration( struct semantic* semantic,
    if ( enumeration->name ) {
       if ( semantic->in_localscope ) {
          s_bind_local_name( semantic, enumeration->name, &enumeration->object,
-            &enumeration->force_local_scope );
+            enumeration->force_local_scope );
       }
    }
    struct enumeration_test test = { -1 };
@@ -949,27 +949,6 @@ static bool test_var_dim( struct semantic* semantic, struct var* var ) {
       struct dim_test test;
       init_dim_test( &test, var->dim, false );
       test_dim_list( semantic, &test );
-      if ( test.resolved && semantic->lang == LANG_ACS ) {
-         struct dim* dim = var->dim;
-         while ( dim ) {
-            if ( dim->length_node && ( dim == var->dim &&
-               ( var->storage == STORAGE_WORLD ||
-               var->storage == STORAGE_GLOBAL ) ) ) {
-               s_diag( semantic, DIAG_POS_ERR, &dim->pos,
-                  "length specified for dimension of %s array",
-                  t_get_storage_name( var->storage ) );
-               s_bail( semantic );
-            }
-            if ( ! dim->length_node && ! ( dim == var->dim &&
-               ( var->storage == STORAGE_WORLD ||
-               var->storage == STORAGE_GLOBAL ) ) ) {
-               s_diag( semantic, DIAG_POS_ERR, &dim->pos,
-                  "dimension missing length" );
-               s_bail( semantic );
-            }
-            dim = dim->next;
-         }
-      }
       return test.resolved;
    }
    else {
@@ -1339,7 +1318,7 @@ static bool test_value( struct semantic* semantic, struct initz_test* test,
       }
       return true;
    }
-   else if ( semantic->lang == LANG_BCS && s_is_onedim_int_array( type ) ) {
+   else if ( s_is_onedim_int_array( type ) ) {
       return test_string_initz( semantic, type->dim, value );
    }
    else {
@@ -1660,28 +1639,6 @@ static bool test_var_finish( struct semantic* semantic, struct var* var ) {
          "local %s declared inside nested function", var->desc == DESC_ARRAY ?
             "array" : "struct variable" );
       s_bail( semantic );
-   }
-   switch ( semantic->lang ) {
-   case LANG_ACS:
-   case LANG_ACS95:
-      if ( semantic->in_localscope && (
-         var->storage == STORAGE_WORLD ||
-         var->storage == STORAGE_GLOBAL ) ) {
-         s_diag( semantic, DIAG_POS_ERR, &var->object.pos,
-            "%s variable declared inside script",
-            t_get_storage_name( var->storage ) );
-         s_bail( semantic );
-      }
-      if ( var->dim && var->dim->next && ( var->storage == STORAGE_WORLD ||
-         var->storage == STORAGE_GLOBAL ) ) {
-         s_diag( semantic, DIAG_POS_ERR, &var->object.pos,
-            "multidimensional %s array",
-            t_get_storage_name( var->storage ) );
-         s_bail( semantic );
-      }
-      break;
-   default:
-      break;
    }
    if ( var->external ) {
       if ( ! test_external_var( semantic, var ) ) {
@@ -2293,9 +2250,7 @@ void s_test_func_body( struct semantic* semantic, struct func* func ) {
    s_add_scope( semantic, true );
    struct builtin_aliases aliases;
    init_builtin_aliases( semantic, &aliases, func );
-   if ( semantic->lib->lang == LANG_BCS ) {
-      bind_builtin_aliases( semantic, &aliases );
-   }
+   bind_builtin_aliases( semantic, &aliases );
    struct param* param = func->params;
    while ( param ) {
       if ( param->name ) {
@@ -2399,16 +2354,9 @@ static void test_nonzero_script_number( struct semantic* semantic,
          "script number not constant" );
       s_bail( semantic );
    }
-   switch ( semantic->lang ) {
-   case LANG_ACS:
-   case LANG_BCS:
-      script->named_script = ( semantic->strong_type ?
-         script->number->spec == SPEC_STR :
-         script->number->root->type == NODE_INDEXED_STRING_USAGE );
-      break;
-   default:
-      break;
-   }
+   script->named_script = ( semantic->strong_type ?
+      script->number->spec == SPEC_STR :
+      script->number->root->type == NODE_INDEXED_STRING_USAGE );
    if ( script->named_script ) {
       struct indexed_string* string = t_lookup_string( semantic->task,
          script->number->value );
@@ -2431,17 +2379,10 @@ static void test_nonzero_script_number( struct semantic* semantic,
             SCRIPT_MAX_NUM );
          s_bail( semantic );
       }
-      switch ( semantic->lang ) {
-      case LANG_ACS:
-      case LANG_BCS:
-         if ( script->number->value == 0 ) {
-            s_diag( semantic, DIAG_POS_ERR, &script->number->pos,
-               "script number 0 not between `<<` and `>>`" );
-            s_bail( semantic );
-         }
-         break;
-      default:
-         break;
+      if ( script->number->value == 0 ) {
+         s_diag( semantic, DIAG_POS_ERR, &script->number->pos,
+            "script number 0 not between `<<` and `>>`" );
+         s_bail( semantic );
       }
    }
 }
@@ -2461,9 +2402,7 @@ static void test_script_body( struct semantic* semantic,
    s_add_scope( semantic, true );
    struct builtin_script_aliases aliases;
    init_builtin_script_aliases( semantic, &aliases, script );
-   if ( semantic->lib->lang == LANG_BCS ) {
-      bind_builtin_script_aliases( semantic, &aliases );
-   }
+   bind_builtin_script_aliases( semantic, &aliases );
    struct param* param = script->params;
    while ( param ) {
       if ( param->name ) {

@@ -6,7 +6,6 @@
 #define MAX_MAP_LOCATIONS 128
 #define MAX_LIB_FUNCS 256
 
-static void publish_acs95( struct codegen* codegen );
 static void publish( struct codegen* codegen );
 static void clarify_vars( struct codegen* codegen );
 static void alloc_dim_counter_var( struct codegen* codegen );
@@ -24,7 +23,6 @@ static void sort_vars( struct codegen* codegen );
 static bool is_initz_zero( struct value* value );
 static void assign_indexes( struct codegen* codegen );
 static void create_assert_strings( struct codegen* codegen );
-static void append_acs_strings( struct codegen* codegen );
 
 void c_init( struct codegen* codegen, struct task* task ) {
    codegen->task = task;
@@ -67,100 +65,23 @@ void c_init( struct codegen* codegen, struct task* task ) {
    codegen->shary.used = false;
    codegen->null_handler = NULL;
    codegen->object_size = 0;
-   codegen->lang = task->library_main->lang;
    codegen->dummy_script_offset = 0;
 }
 
 void c_publish( struct codegen* codegen ) {
-   switch ( codegen->task->library_main->lang ) {
-   case LANG_ACS95:
-      publish_acs95( codegen );
-      break;
-   default:
-      publish( codegen );
-      break;
-   }
-}
-
-static void publish_acs95( struct codegen* codegen ) {
-   // Reserve header.
-   c_add_int( codegen, 0 );
-   c_add_int( codegen, 0 );
-   // Write scripts and strings.
-   c_write_user_code_acs( codegen );
-   int string_offset = c_tell( codegen );
-   struct list_iter i;
-   list_iterate( &codegen->used_strings, &i );
-   while ( ! list_end( &i ) ) {
-      struct indexed_string* string = list_data( &i );
-      // Plus one for the NUL character.
-      c_add_sized( codegen, string->value, string->length + 1 );
-      list_next( &i );
-   }
-   int padding = alignpad( c_tell( codegen ), 4 );
-   while ( padding ) {
-      c_add_byte( codegen, 0 );
-      --padding;
-   }
-   // Write script entries.
-   int dir_offset = c_tell( codegen );
-   c_add_int( codegen, list_size( &codegen->task->library_main->scripts ) );
-   list_iterate( &codegen->task->library_main->scripts, &i );
-   while ( ! list_end( &i ) ) {
-      struct script* script = list_data( &i );
-      int number = script->assigned_number + ( script->type * 1000 );
-      c_add_int( codegen, number );
-      c_add_int( codegen, script->offset );
-      c_add_int( codegen, script->num_param );
-      list_next( &i );
-   }
-   // Write string entries.
-   c_add_int( codegen, list_size( &codegen->used_strings ) );
-   list_iterate( &codegen->used_strings, &i );
-   while ( ! list_end( &i ) ) {
-      struct indexed_string* string = list_data( &i );
-      c_add_int( codegen, string_offset );
-      string_offset += string->length + 1;
-      list_next( &i );
-   }
-   c_seek( codegen, 0 );
-   c_add_sized( codegen, "ACS\0", 4 );
-   c_add_int( codegen, dir_offset );
-   c_flush( codegen );
-}
-
-static void publish( struct codegen* codegen ) {
-   switch ( codegen->lang ) {
-   case LANG_ACS:
-      append_acs_strings( codegen );
-      break;
-   default:
-      // Reserve index 0 for the empty string.
-      c_append_string( codegen, codegen->task->empty_string );
-      break;
-   }
+   // Reserve index 0 for the empty string.
+   c_append_string( codegen, codegen->task->empty_string );
    clarify_vars( codegen );
    clarify_funcs( codegen );
    assign_func_indexes( codegen );
-   switch ( codegen->lang ) {
-   case LANG_BCS:
-      setup_shary( codegen );
-      break;
-   default:
-      break;
-   }
+   
+   setup_shary( codegen );
    sort_vars( codegen );
    assign_indexes( codegen );
-   switch ( codegen->lang ) {
-   case LANG_BCS:
-      patch_initz( codegen );
-      if ( codegen->task->options->write_asserts &&
-         list_size( &codegen->task->runtime_asserts ) > 0 ) {
-         create_assert_strings( codegen );
-      }
-      break;
-   default:
-      break;
+   patch_initz( codegen );
+   if ( codegen->task->options->write_asserts &&
+      list_size( &codegen->task->runtime_asserts ) > 0 ) {
+      create_assert_strings( codegen );
    }
    c_write_chunk_obj( codegen );
 }
@@ -281,8 +202,7 @@ static void alloc_dim_counter_var( struct codegen* codegen ) {
 // - hidden functions
 static void clarify_funcs( struct codegen* codegen ) {
    // Null handler.
-   if ( codegen->lang == LANG_BCS &&
-      codegen->task->library_main->uses_nullable_refs ) {
+   if ( codegen->task->library_main->uses_nullable_refs ) {
       struct func* func = t_alloc_func();
       func->impl = t_alloc_func_user();
       func->name = t_extend_name( codegen->task->root_name, "." );
@@ -734,16 +654,6 @@ void c_append_string( struct codegen* codegen,
       string->index_runtime = codegen->runtime_index;
       ++codegen->runtime_index;
       list_append( &codegen->used_strings, string );
-   }
-}
-
-static void append_acs_strings( struct codegen* codegen ) {
-   struct indexed_string* string = codegen->task->str_table.head;
-   while ( string ) {
-      if ( string->in_source_code ) {
-         c_append_string( codegen, string );
-      }
-      string = string->next;
    }
 }
 

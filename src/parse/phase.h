@@ -440,7 +440,6 @@ struct parse {
    struct library* lib;
    int main_lib_lines;
    int included_lines;
-   int lang;
    const struct lang_limits* lang_limits;
    bool main_source_deinited;
    bool variadic_macro_context;
@@ -549,7 +548,6 @@ void p_define_included_macro( struct parse* parse );
 void p_define_cmdline_macros( struct parse* parse );
 void p_undefine_included_macro( struct parse* parse );
 void p_read_func_body( struct parse* parse, struct func* func );
-int p_determine_lang_from_file_path( const char* path, bool slade_mode );
 bool p_is_macro_defined( struct parse* parse, const char* name );
 void p_init_token( struct token* token );
 void p_pop_source( struct parse* parse );

@@ -123,24 +123,10 @@ void s_test_func_block( struct semantic* semantic, struct func* func,
    if ( func->return_spec == SPEC_AUTO ) {
       func->return_spec = SPEC_VOID;
    }
-   if ( semantic->lang == LANG_BCS ) {
-      if ( func->return_spec != SPEC_VOID && test.flow != FLOW_DEAD ) {
-         s_diag( semantic, DIAG_POS_ERR, &func->object.pos,
-            "function missing return statement" );
-         s_bail( semantic );
-      }
-   }
-   else if ( semantic->lang == LANG_ACS ) {
-      bool return_stmt_at_end = false;
-      if ( list_size( &block->stmts ) > 0 ) {
-         struct node* node = list_tail( &block->stmts );
-         return_stmt_at_end = ( node->type == NODE_RETURN );
-      }
-      if ( func->return_spec != SPEC_VOID && ! return_stmt_at_end ) {
-         s_diag( semantic, DIAG_POS_ERR, &func->object.pos,
-            "function missing return statement at end of body" );
-         s_bail( semantic );
-      }
+   if ( func->return_spec != SPEC_VOID && test.flow != FLOW_DEAD ) {
+      s_diag( semantic, DIAG_POS_ERR, &func->object.pos,
+         "function missing return statement" );
+      s_bail( semantic );
    }
 }
 
@@ -1148,18 +1134,6 @@ static void test_expr_stmt( struct semantic* semantic,
    bool require_assign = ( list_size( &stmt->expr_list ) > 1 );
    while ( ! list_end( &i ) ) {
       struct expr* expr = list_data( &i );
-      switch ( semantic->lang ) {
-      case LANG_ACS:
-      case LANG_ACS95:
-         if ( require_assign && expr->root->type != NODE_ASSIGN ) {
-            s_diag( semantic, DIAG_POS_ERR, &expr->pos,
-               "expression not an assignment operation" );
-            s_bail( semantic );
-         }
-         break;
-      default:
-         break;
-      }
       struct expr_test expr_test;
       s_init_expr_test( &expr_test, false, false );
       s_test_expr( semantic, &expr_test, expr );

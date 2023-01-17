@@ -307,7 +307,7 @@ static void read_op( struct parse* parse, struct expr_reading* reading ) {
 
    // Conditional
    // -----------------------------------------------------------------------
-   if ( parse->lang == LANG_BCS && parse->tk == TK_QUESTION_MARK ) {
+   if ( parse->tk == TK_QUESTION_MARK ) {
       struct conditional* cond = mem_alloc( sizeof( *cond ) );
       cond->node.type = NODE_CONDITIONAL;
       cond->pos = parse->tk_pos;
@@ -333,40 +333,26 @@ static void read_op( struct parse* parse, struct expr_reading* reading ) {
    // Assignment
    // -----------------------------------------------------------------------
    if ( reading->skip_assign ) {
-      goto finish;
+      return;
    }
    if ( assign ) {
       assign->rside = reading->node;
       reading->node = &assign->node;
-      goto finish;
+      return;
    }
-   switch ( parse->lang ) {
-   case LANG_ACS95:
-      switch ( parse->tk ) {
-      case TK_ASSIGN: op = AOP_NONE; break;
-      case TK_ASSIGN_ADD: op = AOP_ADD; break;
-      case TK_ASSIGN_SUB: op = AOP_SUB; break;
-      case TK_ASSIGN_MUL: op = AOP_MUL; break;
-      case TK_ASSIGN_DIV: op = AOP_DIV; break;
-      case TK_ASSIGN_MOD: op = AOP_MOD; break;
-      default: goto finish;
-      }
-      break;
-   default:
-      switch ( parse->tk ) {
-      case TK_ASSIGN: op = AOP_NONE; break;
-      case TK_ASSIGN_ADD: op = AOP_ADD; break;
-      case TK_ASSIGN_SUB: op = AOP_SUB; break;
-      case TK_ASSIGN_MUL: op = AOP_MUL; break;
-      case TK_ASSIGN_DIV: op = AOP_DIV; break;
-      case TK_ASSIGN_MOD: op = AOP_MOD; break;
-      case TK_ASSIGN_SHIFT_L: op = AOP_SHIFT_L; break;
-      case TK_ASSIGN_SHIFT_R: op = AOP_SHIFT_R; break;
-      case TK_ASSIGN_BIT_AND: op = AOP_BIT_AND; break;
-      case TK_ASSIGN_BIT_XOR: op = AOP_BIT_XOR; break;
-      case TK_ASSIGN_BIT_OR: op = AOP_BIT_OR; break;
-      default: goto finish;
-      }
+   switch ( parse->tk ) {
+   case TK_ASSIGN: op = AOP_NONE; break;
+   case TK_ASSIGN_ADD: op = AOP_ADD; break;
+   case TK_ASSIGN_SUB: op = AOP_SUB; break;
+   case TK_ASSIGN_MUL: op = AOP_MUL; break;
+   case TK_ASSIGN_DIV: op = AOP_DIV; break;
+   case TK_ASSIGN_MOD: op = AOP_MOD; break;
+   case TK_ASSIGN_SHIFT_L: op = AOP_SHIFT_L; break;
+   case TK_ASSIGN_SHIFT_R: op = AOP_SHIFT_R; break;
+   case TK_ASSIGN_BIT_AND: op = AOP_BIT_AND; break;
+   case TK_ASSIGN_BIT_XOR: op = AOP_BIT_XOR; break;
+   case TK_ASSIGN_BIT_OR: op = AOP_BIT_OR; break;
+   default: return;
    }
    assign = mem_alloc( sizeof( *assign ) );
    assign->node.type = NODE_ASSIGN;
@@ -376,16 +362,9 @@ static void read_op( struct parse* parse, struct expr_reading* reading ) {
    assign->pos = parse->tk_pos;
    assign->spec = SPEC_NONE;
    p_read_tk( parse );
-   switch ( parse->lang ) {
-   case LANG_ACS95:
-      goto top;
-   default:
-      read_op( parse, reading );
-      assign->rside = reading->node;
-      reading->node = &assign->node;
-      break;
-   }
-   finish:
+   read_op( parse, reading );
+   assign->rside = reading->node;
+   reading->node = &assign->node;
    return;
 }
 
@@ -417,33 +396,7 @@ static struct logical* alloc_logical( int op, struct pos* pos ) {
 }
 
 static void read_prefix( struct parse* parse, struct expr_reading* reading ) {
-   // Determine which prefix operation to read.
-   enum tk prefix = TK_NONE;
-   switch ( parse->lang ) {
-   case LANG_ACS:
-   case LANG_ACS95:
-      switch ( parse->tk ) {
-      case TK_INC:
-      case TK_DEC:
-      case TK_MINUS:
-      case TK_LOG_NOT:
-         prefix = parse->tk;
-         break;
-      case TK_BIT_NOT:
-      case TK_PLUS:
-         if ( parse->lang == LANG_ACS ) {
-            prefix = parse->tk;
-         }
-         break;
-      default:
-         break;
-      }
-      break;
-   default:
-      prefix = parse->tk;
-   }
-   // Read prefix operation.
-   switch ( prefix ) {
+   switch ( parse->tk ) {
    case TK_MINUS:
    case TK_PLUS:
    case TK_LOG_NOT:
@@ -506,43 +459,7 @@ static struct inc* alloc_inc( struct pos pos, bool dec ) {
 }
 
 static void read_primary( struct parse* parse, struct expr_reading* reading ) {
-   // Determine which primary to read.
-   enum tk primary = TK_NONE;
-   switch ( parse->lang ) {
-   case LANG_ACS:
-   case LANG_ACS95:
-      switch ( parse->tk ) {
-      case TK_ID:
-      case TK_PRINT:
-      case TK_PRINTBOLD:
-      case TK_LOG:
-      case TK_HUDMESSAGE:
-      case TK_HUDMESSAGEBOLD:
-      case TK_STRPARAM:
-      case TK_ACSEXECUTEWAIT:
-      case TK_ACSNAMEDEXECUTEWAIT:
-         primary = TK_ID;
-         break;
-      case TK_LIT_DECIMAL:
-      case TK_LIT_OCTAL:
-      case TK_LIT_HEX:
-      case TK_LIT_CHAR:
-      case TK_LIT_FIXED:
-      case TK_LIT_STRING:
-      case TK_LIT_RADIX:
-      case TK_STRCPY:
-      case TK_PAREN_L:
-         primary = parse->tk;
-         break;
-      default:
-         break;
-      }
-      break;
-   default:
-      primary = parse->tk;
-   }
-   // Read primary.
-   switch ( primary ) {
+   switch ( parse->tk ) {
    case TK_ID:
       read_id( parse, reading );
       break;
@@ -626,19 +543,13 @@ static void read_string( struct parse* parse, struct expr_reading* reading ) {
          parse->tk_length, parse->lang_limits->max_string_length );
       p_bail( parse );
    }
-   // In ACS, a string in an imported library is discarded.
-   if ( parse->lang == LANG_ACS && parse->lib->imported ) {
-      reading->node = ( struct node* ) t_alloc_literal();
-   }
-   else {
-      struct indexed_string* string = t_intern_string( parse->task,
-         parse->tk_text, parse->tk_length );
-      string->in_source_code = true;
-      struct indexed_string_usage* usage = mem_slot_alloc( sizeof( *usage ) );
-      usage->node.type = NODE_INDEXED_STRING_USAGE;
-      usage->string = string;
-      reading->node = &usage->node;
-   }
+   struct indexed_string* string = t_intern_string( parse->task,
+      parse->tk_text, parse->tk_length );
+   string->in_source_code = true;
+   struct indexed_string_usage* usage = mem_slot_alloc( sizeof( *usage ) );
+   usage->node.type = NODE_INDEXED_STRING_USAGE;
+   usage->string = string;
+   reading->node = &usage->node;
    p_read_tk( parse );
 }
 
@@ -859,37 +770,7 @@ static void read_conversion( struct parse* parse,
 static void read_suffix( struct parse* parse, struct expr_reading* reading ) {
    read_primary( parse, reading );
    while ( true ) {
-      // Determine which suffix operation to read.
-      enum tk suffix = TK_NONE;
-      switch ( parse->lang ) {
-      case LANG_ACS:
-         switch ( parse->tk ) {
-         case TK_BRACKET_L:
-         case TK_PAREN_L:
-         case TK_INC:
-         case TK_DEC:
-            suffix = parse->tk;
-            break;
-         default:
-            break;
-         }
-         break;
-      case LANG_ACS95:
-         switch ( parse->tk ) {
-         case TK_PAREN_L:
-         case TK_INC:
-         case TK_DEC:
-            suffix = parse->tk;
-            break;
-         default:
-            break;
-         }
-         break;
-      default:
-         suffix = parse->tk;
-      }
-      // Read suffix operation.
-      switch ( suffix ) {
+      switch ( parse->tk ) {
       case TK_BRACKET_L:
          if ( reading->skip_subscript ) {
             return;
@@ -1071,36 +952,23 @@ static void init_format_cast( struct format_cast* cast ) {
 
 static void read_format_cast( struct parse* parse, struct format_cast* cast ) {
    cast->pos = parse->tk_pos;
-   switch ( parse->lang ) {
-   case LANG_ACS95:
-      switch ( parse->tk_text[ 0 ] ) {
-      case 'c': cast->type = FCAST_CHAR; break;
-      case 'd': cast->type = FCAST_DECIMAL; break;
-      case 'i': cast->type = FCAST_RAW; break;
-      case 's': cast->type = FCAST_STRING; break;
-      default:
-         cast->unknown = true;
-      }
-      break;
+   switch ( parse->tk_text[ 0 ] ) {
+   case 'a': cast->type = FCAST_ARRAY; break;
+   case 'b': cast->type = FCAST_BINARY; break;
+   case 'c': cast->type = FCAST_CHAR; break;
+   case 'd': cast->type = FCAST_DECIMAL; break;
+   case 'f': cast->type = FCAST_FIXED; break;
+   case 'i': cast->type = FCAST_RAW; break;
+   case 'k': cast->type = FCAST_KEY; break;
+   case 'l': cast->type = FCAST_LOCAL_STRING; break;
+   case 'n': cast->type = FCAST_NAME; break;
+   case 's': cast->type = FCAST_STRING; break;
+   case 'x': cast->type = FCAST_HEX; break;
    default:
-      switch ( parse->tk_text[ 0 ] ) {
-      case 'a': cast->type = FCAST_ARRAY; break;
-      case 'b': cast->type = FCAST_BINARY; break;
-      case 'c': cast->type = FCAST_CHAR; break;
-      case 'd': cast->type = FCAST_DECIMAL; break;
-      case 'f': cast->type = FCAST_FIXED; break;
-      case 'i': cast->type = FCAST_RAW; break;
-      case 'k': cast->type = FCAST_KEY; break;
-      case 'l': cast->type = FCAST_LOCAL_STRING; break;
-      case 'n': cast->type = FCAST_NAME; break;
-      case 's': cast->type = FCAST_STRING; break;
-      case 'x': cast->type = FCAST_HEX; break;
-      default:
-         cast->unknown = true;
-      }
-      if ( parse->tk_length != 1 ) {
-         cast->unknown = true;
-      }
+      cast->unknown = true;
+   }
+   if ( parse->tk_length != 1 ) {
+      cast->unknown = true;
    }
    if ( cast->unknown ) {
       p_diag( parse, DIAG_POS_ERR, &parse->tk_pos,
@@ -1195,7 +1063,7 @@ static void read_strcpy_call( struct parse* parse,
    p_test_tk( parse, TK_PAREN_L );
    p_read_tk( parse );
    // Array field. The format-cast is optional in BCS.
-   if ( ! ( parse->lang == LANG_BCS && ! peek_format_cast( parse ) ) ) {
+   if ( peek_format_cast( parse ) ) {
       struct format_cast cast;
       init_format_cast( &cast );
       read_format_cast( parse, &cast );

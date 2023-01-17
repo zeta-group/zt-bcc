@@ -5,8 +5,6 @@
 
 static void read_peeked_token( struct parse* parse );
 static void read_token( struct parse* parse );
-static void read_token_bcs( struct parse* parse );
-static void read_token_acs( struct parse* parse );
 static struct token* push_token( struct parse* parse );
 
 // Functions used by the parser.
@@ -35,15 +33,6 @@ static void read_peeked_token( struct parse* parse ) {
 }
 
 static void read_token( struct parse* parse ) {
-   if ( parse->lang == LANG_BCS ) {
-      read_token_bcs( parse );
-   }
-   else {
-      read_token_acs( parse );
-   }
-}
-
-static void read_token_bcs( struct parse* parse ) {
    top:
    p_read_stream( parse );
    switch ( parse->token->type ) {
@@ -215,18 +204,6 @@ static void read_token_bcs( struct parse* parse ) {
          parse->token->length = text.length;
          str_deinit( &text );
       }
-   }
-}
-
-static void read_token_acs( struct parse* parse ) {
-   top:
-   p_read_stream( parse );
-   switch ( parse->token->type ) {
-   case TK_NL:
-   case TK_HORZSPACE:
-      goto top;
-   default:
-      break;
    }
 }
 

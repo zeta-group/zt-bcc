@@ -13,8 +13,6 @@ static void write_runtime_assert( struct codegen* codegen,
 static void visit_if( struct codegen* codegen, struct if_stmt* );
 static void push_if_cond( struct codegen* codegen, struct heavy_cond* cond );
 static void visit_switch( struct codegen* codegen, struct switch_stmt* );
-static void write_switch_casegoto( struct codegen* codegen,
-   struct switch_stmt* stmt );
 static bool string_switch( struct switch_stmt* stmt );
 static void write_switch( struct codegen* codegen, struct switch_stmt* stmt );
 static void write_switch_cond( struct codegen* codegen,
@@ -279,64 +277,12 @@ static void push_if_cond( struct codegen* codegen, struct heavy_cond* cond ) {
 }
 
 static void visit_switch( struct codegen* codegen, struct switch_stmt* stmt ) {
-   switch ( codegen->lang ) {
-   case LANG_ACS:
-      write_switch( codegen, stmt );
-      break;
-   case LANG_ACS95:
-      write_switch_casegoto( codegen, stmt );
-      break;
-   case LANG_BCS:
-      if ( string_switch( stmt ) ) {
-         write_string_switch( codegen, stmt );
-      }
-      else {
-         write_switch( codegen, stmt );
-      }
-   }
-}
-
-static void write_switch_casegoto( struct codegen* codegen,
-   struct switch_stmt* stmt ) {
-   struct c_point* exit_point = c_create_point( codegen );
-   // Condition.
-   c_push_expr( codegen, stmt->cond.expr );
-   // Case selection.
-   bool zero_value_case = false;
-   struct case_label* label = stmt->case_head;
-   while ( label ) {
-      label->point = c_create_point( codegen );
-      struct c_casejump* jump = c_create_casejump( codegen,
-         label->number->value, label->point );
-      c_append_node( codegen, &jump->node );
-      if ( label->number->value == 0 ) {
-         zero_value_case = true;
-      }
-      label = label->next;
-   }
-   // Default case.
-   struct c_point* default_point = exit_point;
-   if ( stmt->case_default ) {
-      default_point = c_create_point( codegen );
-      stmt->case_default->point = default_point;
-   }
-   // Optimization: instead of using PCD_DROP and PCD_GOTO to jump to the
-   // default point, use a single instruction to eat up the value and jump.
-   if ( zero_value_case ) {
-      struct c_jump* default_jump = c_create_jump( codegen, PCD_IFGOTO );
-      c_append_node( codegen, &default_jump->node );
-      default_jump->point = default_point;
+   if ( string_switch( stmt ) ) {
+      write_string_switch( codegen, stmt );
    }
    else {
-      c_pcd( codegen, PCD_DROP );
-      struct c_jump* default_jump = c_create_jump( codegen, PCD_GOTO );
-      c_append_node( codegen, &default_jump->node );
-      default_jump->point = default_point;
+      write_switch( codegen, stmt );
    }
-   // Body.
-   c_write_stmt( codegen, stmt->body );
-   c_append_node( codegen, &exit_point->node );
-   set_jumps_point( codegen, stmt->jump_break, exit_point );
 }
 
 inline static bool string_switch( struct switch_stmt* stmt ) {

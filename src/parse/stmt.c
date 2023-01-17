@@ -152,7 +152,7 @@ static void read_stmt( struct parse* parse, struct stmt_reading* reading,
       return;
    }
    // goto label.
-   if ( parse->lang == LANG_BCS && parse->tk == TK_ID &&
+   if ( parse->tk == TK_ID &&
       p_peek( parse ) == TK_COLON ) {
       read_label( parse, reading );
       return;
@@ -163,46 +163,8 @@ static void read_stmt( struct parse* parse, struct stmt_reading* reading,
       read_assert( parse, reading );
       return;
    }
-   // Determine which statement to read.
-   enum tk stmt = TK_NONE;
-   switch ( parse->lang ) {
-   case LANG_ACS:
-   case LANG_ACS95:
-      switch ( parse->tk ) {
-      case TK_CASE:
-      case TK_DEFAULT:
-      case TK_BRACE_L:
-      case TK_IF:
-      case TK_SWITCH:
-      case TK_WHILE:
-      case TK_UNTIL:
-      case TK_DO:
-      case TK_BREAK:
-      case TK_CONTINUE:
-      case TK_TERMINATE:
-      case TK_RESTART:
-      case TK_SUSPEND:
-      case TK_SEMICOLON:
-      // ACS.
-      case TK_RETURN:
-      case TK_PALTRANS:
-         stmt = parse->tk;
-         break;
-      case TK_FOR:
-         // for-loop not available in ACS95.
-         if ( parse->lang == LANG_ACS ) {
-            stmt = TK_FOR;
-         }
-         break;
-      default:
-         break;
-      }
-      break;
-   default:
-      stmt = parse->tk;
-   }
    // Read statement.
-   switch ( stmt ) {
+   switch ( parse->tk ) {
    case TK_BRACE_L:
       read_block( parse, reading );
       break;
@@ -350,7 +312,7 @@ static void init_cond( struct cond* cond ) {
 }
 
 static void read_cond( struct parse* parse, struct cond* cond ) {
-   if ( parse->lang == LANG_BCS && p_is_local_dec( parse ) ) {
+   if ( p_is_local_dec( parse ) ) {
       cond->u.var = p_read_cond_var( parse );
    }
    else {
@@ -368,7 +330,7 @@ static void init_heavy_cond( struct heavy_cond* cond ) {
 
 static void read_heavy_cond( struct parse* parse, struct heavy_cond* cond ) {
    bool read_expr = false;
-   if ( parse->lang == LANG_BCS && p_is_local_dec( parse ) ) {
+   if ( p_is_local_dec( parse ) ) {
       cond->var = p_read_cond_var( parse );
       if ( parse->tk == TK_SEMICOLON ) {
          p_read_tk( parse );
@@ -500,13 +462,13 @@ static void read_for( struct parse* parse, struct stmt_reading* reading ) {
       p_read_tk( parse );
    }
    // In BCS, the condition is optional.
-   if ( ! ( parse->lang == LANG_BCS && parse->tk == TK_SEMICOLON ) ) {
+   if ( parse->tk != TK_SEMICOLON ) {
       read_cond( parse, &stmt->cond );
    }
    p_test_tk( parse, TK_SEMICOLON );
    p_read_tk( parse );
    // In BCS, the post-expression is optional.
-   if ( ! ( parse->lang == LANG_BCS && parse->tk == TK_PAREN_R ) ) {
+   if ( parse->tk != TK_PAREN_R ) {
       read_for_post( parse, stmt );
    }
    p_test_tk( parse, TK_PAREN_R );

@@ -530,7 +530,9 @@ static void expand_predef_date( struct parse* parse,
    time_t timestamp;
    time( &timestamp );
    struct tm* info = localtime( &timestamp );
-   int length = strftime( value, sizeof( value ), "%b %e %Y", info );
+   
+   int length = strftime( value, sizeof( value ), "%b %d %Y", info );
+   
    struct token token;
    p_init_token( &token );
    token.type = TK_LIT_STRING;

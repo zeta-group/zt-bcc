@@ -73,8 +73,6 @@ static void eq_func( struct codegen* codegen, struct result* result,
    struct binary* binary );
 static void visit_logical( struct codegen* codegen,
    struct result* result, struct logical* logical );
-static void write_logical_acs( struct codegen* codegen, struct result* result,
-   struct logical* logical );
 static void write_logical( struct codegen* codegen,
    struct result* result, struct logical* logical );
 static void push_logical_operand( struct codegen* codegen,
@@ -647,23 +645,8 @@ static void visit_logical( struct codegen* codegen,
       result->status = R_VALUE;
    }
    else {
-      switch ( codegen->lang ) {
-      case LANG_ACS:
-      case LANG_ACS95:
-         write_logical_acs( codegen, result, logical );
-         break;
-      default:
-         write_logical( codegen, result, logical );
-         break;
-      }
+      write_logical( codegen, result, logical );
    }
-}
-
-static void write_logical_acs( struct codegen* codegen, struct result* result,
-   struct logical* logical ) {
-   push_operand( codegen, logical->lside );
-   push_operand( codegen, logical->rside );
-   c_pcd( codegen, logical->op == LOP_AND ? PCD_ANDLOGICAL : PCD_ORLOGICAL );
 }
 
 // Logical-or and logical-and both perform shortcircuit evaluation.

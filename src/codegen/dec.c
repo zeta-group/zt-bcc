@@ -36,7 +36,6 @@ static void write_string_initz( struct codegen* codegen, struct var* var,
    struct value* value, bool include_nul );
 static void nullify_array( struct codegen* codegen, int storage, int index,
    int start, int size );
-static void write_multi_initz_acs( struct codegen* codegen, struct var* var );
 static void assign_nested_func_indexes( struct codegen* codegen,
    struct func* nested_funcs );
 static void assign_nested_call_ids( struct codegen* codegen,
@@ -106,16 +105,6 @@ static void write_null_handler( struct codegen* codegen ) {
    c_add_opc( codegen, PCD_PRINTSTRING );
    c_add_opc( codegen, PCD_ENDLOG );
    c_add_opc( codegen, PCD_TERMINATE );
-}
-
-void c_write_user_code_acs( struct codegen* codegen ) {
-   // Scripts.
-   struct list_iter i;
-   list_iterate( &codegen->task->library_main->scripts, &i );
-   while ( ! list_end( &i ) ) {
-      write_script( codegen, list_data( &i ) );
-      list_next( &i );
-   }
 }
 
 static void write_script( struct codegen* codegen, struct script* script ) {
@@ -257,12 +246,7 @@ static void visit_local_var( struct codegen* codegen, struct var* var ) {
          ++codegen->func->array_index;
       }
       if ( var->initial ) {
-         if ( codegen->lang == LANG_ACS ) {
-            write_multi_initz_acs( codegen, var );
-         }
-         else {
-            write_multi_initz( codegen, var );
-         }
+         write_multi_initz( codegen, var );
       }
       break;
    case DESC_REFVAR:
@@ -533,16 +517,6 @@ static void nullify_array( struct codegen* codegen, int storage, int index,
       c_append_node( codegen, &exit_point->node );
       exit_jump->value = start + size - 1;
       exit_jump->point = exit_point;
-   }
-}
-
-static void write_multi_initz_acs( struct codegen* codegen, struct var* var ) {
-   struct value* value = var->value;
-   while ( value ) {
-      c_pcd( codegen, PCD_PUSHNUMBER, value->index );
-      c_pcd( codegen, PCD_PUSHNUMBER, value->expr->value );
-      c_update_element( codegen, var->storage, var->index, AOP_NONE );
-      value = value->next;
    }
 }
 

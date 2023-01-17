@@ -137,7 +137,6 @@ struct semantic {
    struct var* global_arrays[ MAX_GLOBAL_VARS ];
    struct type_info type_int;
    int depth;
-   int lang;
    bool retest_nss;
    bool resolved_objects;
    bool trigger_err;

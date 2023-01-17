@@ -11,7 +11,6 @@
 #define TAB_SIZE_MIN 1
 #define TAB_SIZE_MAX 100
 
-static bool check_slade_file( void );
 static void init_options( struct options* );
 static bool read_options( struct options*, char** );
 static void strip_rslash( char* );
@@ -27,10 +26,6 @@ static void clear_cache( struct task* task, struct cache* cache );
 static void preprocess( struct task* task );
 static void compile_mainlib( struct task* task, struct cache* cache );
 static void print_acc_stats( struct task* task, struct parse* parse,
-   struct codegen* codegen );
-static void print_acc_stats_acs( struct task* task, struct parse* parse,
-   struct codegen* codegen );
-static void print_acc_stats_bcs( struct task* task, struct parse* parse,
    struct codegen* codegen );
 static const char* get_script_type_label( int type );
 
@@ -109,18 +104,6 @@ int main( int argc, char* argv[] ) {
    return result;
 }
 
-static bool check_slade_file ( void ) {
-    FILE *slade_file;
-    slade_file = fopen("slade_mode.txt", "r");
-    if(slade_file)
-	{
-        printf("SLADE mode on\n");
-        fclose(slade_file);
-        return true;
-    }
-	return false;
-}
-
 static void init_options( struct options* options ) {
    list_init( &options->includes );
    list_init( &options->defines );
@@ -140,21 +123,6 @@ static void init_options( struct options* options ) {
    options->cache.enable = false;
    options->cache.clear = false;
    options->cache.print = false;
-   options->slade_mode = check_slade_file();
-
-   //SLADE mode implies -x bcs and -one-column
-   if(options->slade_mode)
-   {
-       options->lang = LANG_BCS;
-       options->lang_specified = true;
-       options->one_column = true;
-   }
-   else
-   {
-       options->lang = LANG_ACS;
-       options->lang_specified = false;
-       options->one_column = false;
-   }
 }
 
 static bool read_options( struct options* options, char** argv ) {
@@ -221,7 +189,7 @@ static bool read_options( struct options* options, char** argv ) {
             return false;
          }
       }
-      else if ( (strcmp( option, "one-column" ) == 0) && (!options->slade_mode) ) {
+      else if ( strcmp( option, "one-column" ) == 0 ) {
          options->one_column = true;
       }
       else if ( strcmp( option, "acc-err" ) == 0 ||
@@ -278,41 +246,6 @@ static bool read_options( struct options* options, char** argv ) {
             printf( "error: missing macro argument for %s option\n",
                option );
             return false;
-         }
-      }
-      else if ( (strcmp( option, "x" ) == 0) ) {
-         //if slade mode is disabled, read as normal
-         if(!options->slade_mode) {
-             options->lang_specified = true;
-             if ( *args ) {
-                if ( strcmp( *args, "acs" ) == 0 ) {
-                   options->lang = LANG_ACS;
-                   ++args;
-                }
-                else if ( strcmp( *args, "acs95" ) == 0 ) {
-                   options->lang = LANG_ACS95;
-                   ++args;
-                }
-                else if ( strcmp( *args, "bcs" ) == 0 ) {
-                   options->lang = LANG_BCS;
-                   ++args;
-                }
-                else {
-                   printf( "error: unsupported language: %s\n", *args );
-                   return false;
-                }
-             }
-             else {
-                printf( "error: missing language argument for %s option\n",
-                   option );
-                return false;
-             }
-         }
-         //otherwise, just discard
-         else
-         {
-             if ( *args ) //don't skip if language arg is missing
-                ++args;
          }
       }
       else if ( strcmp( option, "l" ) == 0 ) {
@@ -383,11 +316,6 @@ static void print_usage( char* path ) {
       "  -E                   Do preprocessing only\n"
       "  -D <name>            Create a macro with the specified name. The\n"
       "                       macro will have a value of 1\n"
-      "  -x <language>        Specify the language of the source file. The\n"
-      "                       language must be one of the following:\n"
-      "                         acs\n"
-      "                         acs95\n"
-      "                         bcs\n"
       "  -l <library>         Creates a link to the specified library\n"
       "  -version             Show version of the compiler\n"
       "Cache options:\n"
@@ -495,86 +423,6 @@ static void compile_mainlib( struct task* task, struct cache* cache ) {
 }
 
 static void print_acc_stats( struct task* task, struct parse* parse,
-   struct codegen* codegen ) {
-   switch ( parse->lang ) {
-   case LANG_ACS95:
-      print_acc_stats_acs( task, parse, codegen );
-      break;
-   default:
-      print_acc_stats_bcs( task, parse, codegen );
-      break;
-   }
-}
-
-static void print_acc_stats_acs( struct task* task, struct parse* parse,
-   struct codegen* codegen ) {
-   t_diag( task, DIAG_NONE,
-      "\"%s\":\n"
-      "  %d line%s (%d included)\n"
-      "  %d script%s"
-      "",
-      task->library_main->file->path.value,
-      parse->main_lib_lines,
-      parse->main_lib_lines == 1 ? "" : "s",
-      parse->included_lines,
-      list_size( &task->library_main->scripts ),
-      list_size( &task->library_main->scripts ) == 1 ? "" : "s"
-   );
-   int closed_scripts = 0;
-   int open_scripts = 0;
-   struct list_iter i;
-   list_iterate( &task->library_main->scripts, &i );
-   while ( ! list_end( &i ) ) {
-      struct script* script = list_data( &i );
-      switch ( script->type ) {
-      case SCRIPT_TYPE_CLOSED:
-         ++closed_scripts;
-         break;
-      case SCRIPT_TYPE_OPEN:
-         ++open_scripts;
-         break;
-      default:
-         break;
-      }
-      list_next( &i );
-   }
-   if ( closed_scripts > 0 ) {
-      t_diag( task, DIAG_NONE, "    %d closed", closed_scripts );
-   }
-   if ( open_scripts > 0 ) {
-      t_diag( task, DIAG_NONE, "    %d open", open_scripts );
-   }
-   int map_vars = 0;
-   int world_vars = 0;
-   list_iterate( &task->library_main->vars, &i );
-   while ( ! list_end( &i ) ) {
-      struct var* var = list_data( &i );
-      switch ( var->storage ) {
-      case STORAGE_MAP:
-         ++map_vars;
-         break;
-      case STORAGE_WORLD:
-         ++world_vars;
-         break;
-      default:
-         break;
-      }
-      list_next( &i );
-   }
-   t_diag( task, DIAG_NONE,
-      "  %d world variable%s\n"
-      "  %d map variable%s"
-      "",
-      world_vars, world_vars == 1 ? "" : "s",
-      map_vars, map_vars == 1 ? "" : "s"
-   );
-   t_diag( task, DIAG_NONE,
-      "  object \"%s\": %d bytes",
-      task->options->object_file,
-      codegen->object_size );
-}
-
-static void print_acc_stats_bcs( struct task* task, struct parse* parse,
    struct codegen* codegen ) {
    // acc includes imported functions in the function count. This can cause
    // confusion. We, instead, have two counts: one for functions in the library

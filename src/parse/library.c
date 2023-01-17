@@ -110,46 +110,13 @@ static void read_module( struct parse* parse ) {
 }
 
 static void read_module_item( struct parse* parse ) {
-   switch ( parse->lang ) {
-   case LANG_ACS:
-   case LANG_ACS95:
-      read_module_item_acs( parse );
+   switch ( parse->tk ) {
+   case TK_HASH:
+      read_pseudo_dirc( parse, false );
       break;
    default:
-      switch ( parse->tk ) {
-      case TK_HASH:
-         read_pseudo_dirc( parse, false );
-         break;
-      default:
-         read_namespace_member( parse );
-      }
-      break;
-   }
-}
-
-static void read_module_item_acs( struct parse* parse ) {
-   if ( p_is_dec( parse ) || parse->tk == TK_FUNCTION ) {
-      struct dec dec;
-      p_init_dec( &dec );
-      dec.name_offset = parse->ns->body;
-      p_read_dec( parse, &dec );
-   }
-   else {
-      switch ( parse->tk ) {
-      case TK_SCRIPT:
-         p_read_script( parse );
-         break;
-      case TK_HASH:
-         read_pseudo_dirc( parse, false );
-         break;
-      case TK_SPECIAL:
-         p_read_special_list( parse );
-         break;
-      default:
-         p_diag( parse, DIAG_POS_ERR, &parse->tk_pos,
-            "unexpected %s", p_present_token_temp( parse, parse->tk ) );
-         p_bail( parse );
-      }
+      read_namespace_member( parse );
+	  break;
    }
 }
 
@@ -583,42 +550,8 @@ static void read_pseudo_dirc( struct parse* parse, bool first_object ) {
    struct pos pos = parse->tk_pos;
    p_test_tk( parse, TK_HASH );
    p_read_tk( parse );
-   // Determine the directive to read.
-   enum tk dirc = TK_NONE;
-   switch ( parse->lang ) {
-   case LANG_ACS:
-      switch ( parse->tk ) {
-      case TK_DEFINE:
-      case TK_LIBDEFINE:
-      case TK_INCLUDE:
-      case TK_IMPORT:
-      case TK_LIBRARY:
-      case TK_ENCRYPTSTRINGS:
-      case TK_NOCOMPACT:
-      case TK_WADAUTHOR:
-      case TK_NOWADAUTHOR:
-      case TK_REGION:
-      case TK_ENDREGION:
-         dirc = parse->tk;
-         break;
-      default:
-         break;
-      }
-      break;
-   case LANG_ACS95:
-      switch ( parse->tk ) {
-      case TK_DEFINE:
-      case TK_INCLUDE:
-         dirc = parse->tk;
-         break;
-      default:
-         break;
-      }
-      break;
-   default:
-      dirc = determine_bcs_pseudo_dirc( parse );
-   }
-   // Read directive.
+   enum tk dirc = determine_bcs_pseudo_dirc( parse );
+   
    switch ( dirc ) {
    case TK_DEFINE:
    case TK_LIBDEFINE:
@@ -641,16 +574,6 @@ static void read_pseudo_dirc( struct parse* parse, bool first_object ) {
       p_read_tk( parse );
       break;
    case TK_NOCOMPACT:
-      // NOTE: This restriction doesn't apply to our compiler, but keep it to
-      // stay compatible with acc.
-      if ( parse->lang == LANG_ACS && (
-         list_size( &parse->lib->scripts ) > 0 ||
-         list_size( &parse->lib->funcs ) > 0 ) ) {
-         p_diag( parse, DIAG_POS_ERR, &pos,
-            "`%s` directive found after a script or a function",
-            parse->tk_text );
-         p_bail( parse );
-      }
       parse->lib->format = FORMAT_BIG_E;
       p_read_tk( parse );
       break;
@@ -691,7 +614,7 @@ static enum tk determine_bcs_pseudo_dirc( struct parse* parse ) {
 }
 
 static void read_include( struct parse* parse ) {
-   p_test_tk( parse, parse->lang == LANG_BCS ? TK_ID : TK_INCLUDE );
+   p_test_tk( parse, TK_ID );
    p_read_tk( parse );
    if ( parse->lib->imported ) {
       p_test_tk( parse, TK_LIT_STRING );
@@ -709,17 +632,15 @@ static void read_define( struct parse* parse ) {
    p_read_tk( parse );
    // In BCS, true and false are keywords, but they are defined as constants in
    // zcommon.acs. To make the file work in BCS, ignore the #defines.
-   if ( parse->lang == LANG_BCS ) {
-      switch ( parse->tk ) {
-      case TK_TRUE:
-      case TK_FALSE:
-         p_read_tk( parse );
-         p_test_tk( parse, TK_LIT_DECIMAL );
-         p_read_tk( parse );
-         return;
-      default:
-         break;
-      }
+   switch ( parse->tk ) {
+   case TK_TRUE:
+   case TK_FALSE:
+      p_read_tk( parse );
+      p_test_tk( parse, TK_LIT_DECIMAL );
+      p_read_tk( parse );
+      return;
+   default:
+      break;
    }
    p_test_tk( parse, TK_ID );
    struct constant* constant = t_alloc_constant();
@@ -737,7 +658,7 @@ static void read_define( struct parse* parse ) {
 }
 
 static void read_import( struct parse* parse, struct pos* pos ) {
-   p_test_tk( parse, parse->lang == LANG_BCS ? TK_ID : TK_IMPORT );
+   p_test_tk( parse, TK_ID );
    p_read_tk( parse );
    p_test_tk( parse, TK_LIT_STRING );
    struct import_dirc* dirc = alloc_import_dirc();
@@ -757,27 +678,15 @@ static struct import_dirc* alloc_import_dirc( void ) {
 
 static void read_library( struct parse* parse, struct pos* pos,
    bool first_object ) {
-   p_test_tk( parse, parse->lang == LANG_BCS ? TK_ID : TK_LIBRARY );
+   p_test_tk( parse, TK_ID );
    p_read_tk( parse );
    parse->lib->header = true;
    parse->lib->importable = true;
-   if ( parse->lang == LANG_BCS ) {
-      if ( parse->tk == TK_LIT_STRING ) {
-         read_library_name( parse, pos );
-      }
-      else {
-         parse->lib->name_pos = *pos;
-      }
-   }
-   else {
+   if ( parse->tk == TK_LIT_STRING ) {
       read_library_name( parse, pos );
    }
-   // In ACS, the #library header must be the first object in the module. In
-   // BCS, it can appear anywhere.
-   if ( parse->lang == LANG_ACS && ! first_object ) {
-      p_diag( parse, DIAG_POS_ERR, &parse->tk_pos,
-         "`library` directive not at the very top" );
-      p_bail( parse );
+   else {
+      parse->lib->name_pos = *pos;
    }
 }
 
@@ -912,11 +821,9 @@ static void finish_wadauthor( struct parse* parse ) {
          }
       }
       else {
-         if ( ( parse->lib->lang == LANG_BCS && ! parse->lib->wadauthor ) ||
-            ( parse->lib->lang == LANG_ACS && parse->lib->wadauthor ) ) {
+         if ( ! parse->lib->wadauthor ) {
             p_diag( parse, DIAG_POS | DIAG_NOTE, &parse->wadauthor.pos,
-               "#%s is enabled by default, so you don't need to specify it",
-               parse->lib->wadauthor ? "wadauthor" : "nowadauthor" );
+               "#nowadauthor is enabled by default, so you don't need to specify it" );
          }
       }
    }
@@ -957,13 +864,6 @@ static void import_lib( struct parse* parse, struct import_dirc* dirc ) {
    struct library_request request;
    init_library_request( &request, dirc, file );
    load_imported_lib( parse, &request );
-   // BCS has some new constructs, like namespaces, that are not valid in ACS,
-   // so disable importing of BCS libraries into ACS.
-   if ( request.lib->lang == LANG_BCS && parse->lib->lang == LANG_ACS ) {
-      p_diag( parse, DIAG_POS_ERR, &dirc->pos,
-         "importing BCS library into ACS library" );
-      p_bail( parse );
-   }
    append_imported_lib( parse, dirc, request.lib );
 }
 
@@ -1007,8 +907,6 @@ static void load_imported_lib_from_storage( struct parse* parse,
       lib = t_add_library( parse->task );
    }
    // Common initialization for cached and freshly-read libraries.
-   lib->lang = p_determine_lang_from_file_path(
-      request->file->full_path.value, parse->task->options->slade_mode );
    lib->imported = true;
    list_append( &parse->task->libraries, lib );
    // Read library from source file.
@@ -1023,8 +921,7 @@ static void load_imported_lib_from_storage( struct parse* parse,
 
 static void read_imported_lib( struct parse* parse,
    struct library_request* request, struct library* lib ) {
-   parse->lang = lib->lang;
-   parse->lang_limits = t_get_lang_limits( lib->lang );
+   parse->lang_limits = t_get_lang_limits();
    parse->lib = lib;
    p_load_imported_lib_source( parse, request->dirc, request->file );
    parse->ns_fragment = lib->upmost_ns_fragment;
@@ -1058,17 +955,7 @@ static void append_imported_lib( struct parse* parse, struct import_dirc* dirc,
       list_next( &i );
    }
    list_append( &parse->lib->dynamic, lib );
-   switch ( lib->lang ) {
-   case LANG_BCS:
-      list_append( &parse->lib->dynamic_bcs, lib );
-      break;
-   case LANG_ACS:
-      list_append( &parse->lib->dynamic_acs, lib );
-      break;
-   default:
-      UNREACHABLE();
-      p_bail( parse );
-   }
+   list_append( &parse->lib->dynamic_bcs, lib );
    dirc->lib = lib;
 }
 

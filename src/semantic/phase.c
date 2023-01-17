@@ -113,7 +113,7 @@ void s_init( struct semantic* semantic, struct task* task ) {
    semantic->free_sweep = NULL;
    semantic->topfunc_test = NULL;
    semantic->func_test = NULL;
-   semantic->lang_limits = t_get_lang_limits( semantic->lib->lang );
+   semantic->lang_limits = t_get_lang_limits();
    init_worldglobal_vars( semantic );
    s_init_type_info_scalar( &semantic->type_int, SPEC_INT );
    semantic->depth = 0;
@@ -122,7 +122,6 @@ void s_init( struct semantic* semantic, struct task* task ) {
    semantic->trigger_err = false;
    semantic->in_localscope = false;
    semantic->strong_type = false;
-   semantic->lang = semantic->lib->lang;
 }
 
 static void init_worldglobal_vars( struct semantic* semantic ) {
@@ -154,15 +153,7 @@ int s_spec( struct semantic* semantic, int spec ) {
 }
 
 void s_test( struct semantic* semantic ) {
-   switch ( semantic->lang ) {
-   case LANG_ACS:
-   case LANG_ACS95:
-      test_acs( semantic );
-      break;
-   default:
-      test_bcs( semantic );
-      break;
-   }
+   test_bcs( semantic );
    if ( list_size( &semantic->main_lib->scripts ) >
       semantic->lang_limits->max_scripts ) {
       s_diag( semantic, DIAG_FILE | DIAG_ERR, &semantic->main_lib->file_pos,
@@ -178,91 +169,6 @@ void s_test( struct semantic* semantic ) {
          "too many strings (have %d, but maximum is %d)",
          semantic->task->str_table.size,
          semantic->lang_limits->max_strings );
-      s_bail( semantic );
-   }
-}
-
-static void test_acs( struct semantic* semantic ) {
-   semantic->trigger_err = true;
-   // Test imported modules.
-   struct list_iter i;
-   list_iterate( &semantic->main_lib->dynamic_acs, &i );
-   while ( ! list_end( &i ) ) {
-      test_module_acs( semantic, list_data( &i ) );
-      list_next( &i );
-   }
-   // Test module.
-   test_module_acs( semantic, semantic->main_lib );
-   check_dup_scripts( semantic );
-   assign_script_numbers( semantic );
-}
-
-static void test_module_acs( struct semantic* semantic, struct library* lib ) {
-   semantic->ns_fragment = lib->upmost_ns_fragment;
-   semantic->ns = lib->upmost_ns_fragment->ns;
-   // In ACS, one can use functions before they are declared.
-   struct list_iter i;
-   list_iterate( &lib->objects, &i );
-   while ( ! list_end( &i ) ) {
-      struct node* node = list_data( &i );
-      if ( node->type == NODE_FUNC ) {
-         struct func* func = ( struct func* ) node;
-         bind_namespace_object( semantic, &func->object );
-         s_test_func( semantic, func );
-      }
-      list_next( &i );
-   }
-   list_iterate( &lib->objects, &i );
-   while ( ! list_end( &i ) ) {
-      test_module_item_acs( semantic, list_data( &i ) );
-      list_next( &i );
-   }
-   // Constants created through #define are visible only in the library in
-   // which they are created.
-   list_iterate( &lib->objects, &i );
-   while ( ! list_end( &i ) ) {
-      struct object* object = list_data( &i );
-      if ( object->node.type == NODE_CONSTANT ) {
-         struct constant* constant = ( struct constant* ) object;
-         if ( constant->hidden ) {
-            constant->name->object = NULL;
-         }
-      }
-      list_next( &i );
-   }
-}
-
-static void test_module_item_acs( struct semantic* semantic,
-   struct node* node ) {
-   switch ( node->type ) {
-      struct constant* constant;
-      struct var* var;
-      struct func* func;
-   case NODE_CONSTANT:
-      constant = ( struct constant* ) node;
-      bind_namespace_object( semantic, &constant->object );
-      s_test_constant( semantic, constant );
-      break;
-   case NODE_VAR:
-      var = ( struct var* ) node;
-      bind_namespace_object( semantic, &var->object );
-      s_test_var( semantic, var );
-      break;
-   case NODE_FUNC:
-      func = ( struct func* ) node;
-      if ( func->type == FUNC_USER ) {
-         struct func_user* impl = func->impl;
-         if ( impl->body ) {
-            s_test_func_body( semantic, func );
-         }
-      }
-      break;
-   case NODE_SCRIPT:
-      s_test_script( semantic,
-         ( struct script* ) node );
-      break;
-   default:
-      UNREACHABLE();
       s_bail( semantic );
    }
 }
@@ -288,15 +194,13 @@ static void test_bcs( struct semantic* semantic ) {
    }
 }
 
+// TODO: Probably can be removed
 static void test_imported_acs_libs( struct semantic* semantic ) {
    semantic->trigger_err = true;
    struct list_iter i;
    list_iterate( &semantic->main_lib->dynamic_acs, &i );
    while ( ! list_end( &i ) ) {
       struct library* lib = list_data( &i );
-      if ( lib->lang == LANG_ACS ) {
-         test_module_acs( semantic, lib );
-      }
       list_next( &i );
    }
    semantic->trigger_err = false;
@@ -1330,12 +1234,6 @@ void s_bind_local_name( struct semantic* semantic, struct name* name,
       bind_block_name( semantic, name, object );
    }
    else {
-      // In ACS, an object in function scope cannot hide an object that is in
-      // global (namespace) scope.
-      if ( semantic->lang == LANG_ACS && name->object &&
-         name->object->depth == 0 ) {
-         dupnameglobal_err( semantic, name, object );
-      }
       bind_func_name( semantic, name, object );
    }
 }

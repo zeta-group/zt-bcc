@@ -15,15 +15,12 @@ struct setup {
    struct param* param_tail;
    struct expr* empty_string_expr;
    const char* format;
-   int lang;
 };
 
-static void init_setup( struct setup* setup, struct task* task, int lang );
+static void init_setup( struct setup* setup, struct task* task );
 static void setup_func( struct setup* setup, int entry );
 static void setup_return_type( struct setup* setup );
 static void setup_param_list( struct setup* setup );
-static void setup_param_list_acs( struct setup* setup );
-static void setup_param_list_bcs( struct setup* setup );
 static void setup_default_value( struct setup* setup, struct param* param,
    int param_number );
 static void setup_empty_string_default_value( struct setup* setup,
@@ -337,43 +334,31 @@ struct {
 
 enum {
    BOUND_DED = ARRAY_SIZE( g_deds ),
-   BOUND_DED_ACS95 = 21,
    BOUND_FORMAT = BOUND_DED + ARRAY_SIZE( g_formats )
 };
 
-void t_create_builtins( struct task* task, int lang ) {
+void t_create_builtins( struct task* task ) {
    struct setup setup;
-   init_setup( &setup, task, lang );
+   init_setup( &setup, task );
    enum { TOTAL_IMPLS =
       ARRAY_SIZE( g_deds ) +
       ARRAY_SIZE( g_formats ) +
       ARRAY_SIZE( g_interns ) };
    STATIC_ASSERT( ARRAY_SIZE( g_funcs ) == TOTAL_IMPLS,
       builtin_function_declarations_not_equal_implementations );
-   if ( lang == LANG_ACS95 ) {
-      // Dedicated functions.
-      for ( int entry = 0; entry < BOUND_DED_ACS95; ++entry ) {
-         setup_func( &setup, entry );
-      }
-      // Format functions.
-      setup_func( &setup, BOUND_DED );
-      setup_func( &setup, BOUND_DED + 1 );
-   }
-   else {
-      for ( int entry = 0; entry < ARRAY_SIZE( g_funcs ); ++entry ) {
-         setup_func( &setup, entry );
-      }
+	  
+   for ( int entry = 0; entry < ARRAY_SIZE( g_funcs ); ++entry ) {
+      setup_func( &setup, entry );
    }
 }
 
-static void init_setup( struct setup* setup, struct task* task, int lang ) {
+static void init_setup( struct setup* setup, struct task* task ) {
    setup->task = task;
    setup->func = NULL;
    setup->param = NULL;
    setup->param_tail = NULL;
    setup->empty_string_expr = NULL;
    setup->format = NULL;
-   setup->lang = lang;
 }
 
 static void setup_func( struct setup* setup, int entry ) {
@@ -432,50 +417,12 @@ static void setup_return_type( struct setup* setup ) {
             "invalid builtin function return type `%c`", setup->format[ 0 ] );
          t_bail( setup->task );
       }
-      switch ( setup->lang ) {
-      case LANG_ACS:
-      case LANG_ACS95:
-         if ( spec != SPEC_VOID ) {
-            spec = SPEC_RAW;
-         }
-         break;
-      default:
-         break;
-      }
       ++setup->format;
    }
    setup->func->return_spec = spec;
 }
 
 static void setup_param_list( struct setup* setup ) {
-   switch ( setup->lang ) {
-   case LANG_ACS:
-   case LANG_ACS95:
-      setup_param_list_acs( setup );
-      break;
-   default:
-      setup_param_list_bcs( setup );
-   }
-}
-
-static void setup_param_list_acs( struct setup* setup ) {
-   // In ACS and ACS95, we're just interested in the parameter count.
-   bool optional = false;
-   while ( setup->format[ 0 ] ) {
-      if ( setup->format[ 0 ] == ';' ) {
-         optional = true;
-      }
-      else {
-         if ( ! optional ) {
-            ++setup->func->min_param;
-         }
-         ++setup->func->max_param;
-      }
-      ++setup->format;
-   }
-}
-
-static void setup_param_list_bcs( struct setup* setup ) {
    const char* format = setup->format;
    bool optional = false;
    while ( format[ 0 ] ) {
