@@ -26,4 +26,4 @@ BCS is an extension of ACS. BCS is mostly compatible with ACS and provides many 
 * `foreach` loop
 * `?:` operator
 
-See the [details](https://github.com/zeta-group/zt-bcc/blob/dev0.8.1/doc/details.md) file for an overview of the features.
+See the [wiki](https://github.com/zeta-group/zt-bcc/wiki) page for an overview of the features.
