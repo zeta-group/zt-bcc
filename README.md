@@ -1,10 +1,4 @@
-<kbd>bcc</kbd> is a BCS, ACS, and ACS95 compiler.
-
-## Supported Scripting Languages
-
-<kbd>bcc</kbd> can compile source code written in the following languages.
-
-### BCS
+<kbd>bcc</kbd> is an enhanced ACS bytecode compiler for the ZDoom family of ports.
 
 ```
 strict namespace SampleCode {
@@ -27,11 +21,9 @@ BCS is an extension of ACS. BCS is mostly compatible with ACS and provides many 
 * Strong types
 * Block scoping
 * Optional function parameters
+* Object and function references
 * `&&` and `||` operators are short-circuited
 * `foreach` loop
 * `?:` operator
 
-See the [details](https://github.com/wormt/bcc/blob/bcs/doc/details.md) file for an overview of the features.
-
-### ACS/ACS95
-<kbd>bcc</kbd> can also compile ACS and ACS95 code. ACS95 is the ACS scripting language that was used for scripting Hexen. The name, ACS95, is invented by <kbd>bcc</kbd> to distinguish between the two languages.
+See the [details](https://github.com/zeta-group/zt-bcc/blob/dev0.8.1/doc/details.md) file for an overview of the features.
