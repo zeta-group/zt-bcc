@@ -1,6 +1,6 @@
 cmake_minimum_required (VERSION 3.1)
-project (bcc)
-add_executable( bcc
+project (zt-bcc)
+add_executable( zt-bcc
         src/parse/token/user.c
         src/parse/phase.c
         src/semantic/phase.c
@@ -40,7 +40,7 @@ add_executable( bcc
         src/cache/field.c
         src/cache/library.c
         src/main.c)
-target_include_directories(bcc PUBLIC
+target_include_directories(zt-bcc PUBLIC
         src/parse
         src/codegen
         src/cache
