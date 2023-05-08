@@ -45,5 +45,5 @@ target_include_directories(zt-bcc PUBLIC
         src/codegen
         src/cache
         src/semantic
-        src
-        )
+        src)
+set_property(TARGET zt-bcc PROPERTY C_STANDARD 99)
