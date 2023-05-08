@@ -1,4 +1,4 @@
 
 *.o
 *.exe
-*.exe
+build/
