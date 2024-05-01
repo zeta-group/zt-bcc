@@ -682,16 +682,11 @@ static void read_library( struct parse* parse, struct pos* pos,
    p_read_tk( parse );
    parse->lib->header = true;
    parse->lib->importable = true;
-   if ( parse->lang == LANG_BCS ) {
-      if ( parse->tk == TK_LIT_STRING ) {
-         read_library_name( parse, pos );
-      }
-      else {
-         parse->lib->name_pos = *pos;
-      }
+   if ( parse->tk == TK_LIT_STRING ) {
+      read_library_name( parse, pos );
    }
    else {
-      read_library_name( parse, pos );
+      parse->lib->name_pos = *pos;
    }
 }
 
