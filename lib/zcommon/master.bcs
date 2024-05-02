@@ -764,7 +764,11 @@ enum {
    AAPTR_PLAYER7 = 0x1000,
    AAPTR_PLAYER8 = 0x2000,
    AAPTR_FRIENDPLAYER = 0x4000,
-   AAPTR_GET_LINETARGET = 0x8000
+   AAPTR_GET_LINETARGET = 0x8000,
+   AAPTR_PLAYER_GETCAMERA = 0x8000000,
+   AAPTR_DAMAGE_SOURCE = 0x10000000,
+   AAPTR_DAMAGE_INFLICTOR = 0x40000000,
+   AAPTR_DAMAGE_TARGET = 0x80000000
 };
 
 enum {
@@ -795,6 +799,7 @@ enum {
    ARMORINFO_MAXABSORB,
    ARMORINFO_MAXFULLABSORB,
    ARMORINFO_ACTUALSAVEAMOUNT,
+   ARMORINFO_MAXFULLABSORB
 };
 
 enum {
@@ -1193,7 +1198,9 @@ enum {
    GAMEEVENT_CHAT,
    GAMEEVENT_PLAYERCONNECT,
    GAMEEVENT_ACTOR_SPAWNED,
-   GAMEEVENT_ACTOR_DAMAGED
+   GAMEEVENT_ACTOR_DAMAGED,
+   GAMEEVENT_DOMINATION_CONTROL,
+   GAMEEVENT_DOMINATION_POINT
 };
 
 enum : bool {
@@ -1227,12 +1234,6 @@ enum {
    MAPROTATION_USED,
    MAPROTATION_MINPLAYERS,
    MAPROTATION_MAXPLAYERS
-};
-
-enum {
-   AAPTR_DAMAGE_SOURCE    = 0x10000000,
-   AAPTR_DAMAGE_INFLICTOR = 0x40000000,
-   AAPTR_DAMAGE_TARGET    = 0x80000000
 };
 
 enum {
@@ -1675,20 +1676,37 @@ special
 -131:SetActivatorToPlayer(int):bool,
 -132:SetCurrentGamemode(str):int,
 -133:GetCurrentGamemode():str,
--134:SetGamemodeLimit(int, int):int,
--135:SetPlayerClass(int, str, bool):int,
--136:SetPlayerChasecam(int, bool):int,
+-134:SetGamemodeLimit(int,int):int,
+-135:SetPlayerClass(int,str,bool):int,
+-136:SetPlayerChasecam(int,bool):int,
 -137:GetPlayerChasecam(int):bool,
--138:SetPlayerScore(int, int, int):int,
--139:GetPlayerScore(int, int):int,
+-138:SetPlayerScore(int,int,int):int,
+-139:GetPlayerScore(int,int):int,
 -140:InDemoMode():bool,
--144:ExecuteClientScript(int, int; int, int, int, int):int,
--145:NamedExecuteClientScript(str, int; int, int, int, int):int,
--146:SendNetworkString(int, str):int,
--147:NamedSendNetworkString(str, str):int,
--148:GetChatMessage(int, int):str,
+-144:ExecuteClientScript(int,int;int,int,int,int):int,
+-145:NamedExecuteClientScript(str,int;int,int,int,int):int,
+-146:SendNetworkString(int,str):int,
+-147:NamedSendNetworkString(str,str):int,
+-148:GetChatMessage(int,int;bool):str,
 -149:GetMapRotationSize():int,
--150:GetMapRotationInfo(int, int):raw,
+-150:GetMapRotationInfo(int,int):raw,
+-151:GetCurrentMapPosition():int,
+-152:GetEventResult():int,
+-153:GetActorSectorLocation(int,bool):str,
+-154:ChangeTeamScore(int,int,int;bool):bool,
+-155:SetGameplaySetting(str,raw):bool,
+-156:SetCustomPlayerValue(str,int,raw):bool,
+-157:GetCustomPlayerValue(str,int):raw,
+-158:ResetCustomDataToDefault(str,int):bool,
+-159:LumpOpen(str;int,int):int,
+-160:LumpRead(int,int;int):raw,
+-161:LumpReadString(int,int;int):str,
+-162:LumpReadLocal(int,int,raw;int,int):int,
+-163:LumpReadModule(int,int,raw;int,int):int,
+-164:LumpReadHub(int,int,raw;int,int):int,
+-165:LumpReadGlobal(int,int,raw;int,int):int,
+-166:LumpGetInfo(raw,int):raw,
+-167:LumpClose(int):bool,
 
 // ZDoom/GZDoom.
 -200:CheckClass(str):bool,

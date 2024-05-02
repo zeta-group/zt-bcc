@@ -1,6 +1,6 @@
 /*
 
-   Standard declarations for Zandronum.
+   Standard declarations for Zandronum 3.2 (alpha).
 
    The following declarations are based on the declarations found in the
    zdefs.acs and zspecial.acs files, both shipped with the acc compiler.
@@ -209,7 +209,7 @@ enum {
    CR_PURPLE,
    CR_DARKGRAY,
    CR_DARKGREY = CR_DARKGRAY,
-   CR_CYAN,
+   CR_CYAN
 /*
    CR_ICE,
    CR_FIRE,
@@ -302,13 +302,15 @@ enum {
    APROP_MELEERANGE,
    APROP_VIEWHEIGHT,
    APROP_ATTACKZOFFSET,
-   APROP_STENCILCOLOR,
+   APROP_STENCILCOLOR
 /*
    APROP_FRICTION,
    APROP_DAMAGEMULTIPLIER,
    APROP_MAXSTEPHEIGHT,
    APROP_MAXDROPOFFHEIGHT,
    APROP_DAMAGETYPE,
+   APROP_SOUNDCLASS,
+   APROP_FRIENDLYSEEBLOCKS
 */
 
    // Eternity.
@@ -773,9 +775,9 @@ enum {
    AAPTR_PLAYER8 = 0x2000,
    AAPTR_FRIENDPLAYER = 0x4000,
 /*
-   AAPTR_GET_LINETARGET = 0x8000
+   AAPTR_GET_LINETARGET = 0x8000,
 */
-   // [AK] Actor pointers used exclusively for GAMEEVENT_ACTOR_DAMAGED
+   AAPTR_PLAYER_GETCAMERA = 0x8000000,
    AAPTR_DAMAGE_SOURCE = 0x10000000,
    AAPTR_DAMAGE_INFLICTOR = 0x40000000,
    AAPTR_DAMAGE_TARGET = 0x80000000
@@ -807,9 +809,9 @@ enum {
    ARMORINFO_SAVEAMOUNT,
    ARMORINFO_SAVEPERCENT,
    ARMORINFO_MAXABSORB,
-   ARMORINFO_MAXFULLABSORB,
+   ARMORINFO_MAXFULLABSORB
 /*
-   ARMORINFO_ACTUALSAVEAMOUNT,
+   ARMORINFO_ACTUALSAVEAMOUNT
 */
 };
 
@@ -1014,9 +1016,10 @@ enum {
    BLOCKF_RAILING = 0x40,
    BLOCKF_USE = 0x80,
    BLOCKF_SIGHT = 0x100,
-   BLOCKF_HITSCAN = 0x200,
+   BLOCKF_HITSCAN = 0x200
 /*
-   BLOCKF_SOUND = 0x400
+   BLOCKF_SOUND = 0x400,
+   BLOCKF_LANDMONSTERS = 0x800
 */
 };
 
@@ -1031,7 +1034,7 @@ enum {
 enum {
    PRINTNAME_LEVELNAME = -1,
    PRINTNAME_LEVEL = -2,
-   PRINTNAME_SKILL = -3,
+   PRINTNAME_SKILL = -3
 /*
    PRINTNAME_NEXTLEVEL = -4,
    PRINTNAME_NEXTSECRET = -5
@@ -1168,6 +1171,12 @@ enum {
    CPXF_SETONPTR = 0x800,
    CPXF_CHECKSIGHT = 0x1000
 };
+
+enum {
+	SECPART_FLOOR,
+	SECPART_CEILING,
+	SECPART_3D
+};
 */
 
 enum {
@@ -1190,40 +1199,9 @@ enum {
    GAMEEVENT_CHAT,
    GAMEEVENT_PLAYERCONNECT,
    GAMEEVENT_ACTOR_SPAWNED,
-   GAMEEVENT_ACTOR_DAMAGED
-};
-
-// [AK] For SetGamemodeLimit
-enum
-{
-	GAMELIMIT_FRAGS,
-	GAMELIMIT_TIME,
-	GAMELIMIT_POINTS,
-	GAMELIMIT_DUELS,
-	GAMELIMIT_WINS,
-	GAMELIMIT_WAVES
-};
-
-// [AK] For SetPlayerScore and GetPlayerScore
-enum
-{
-	SCORE_FRAGS,
-	SCORE_POINTS,
-	SCORE_WINS,
-	SCORE_DEATHS,
-	SCORE_KILLS,
-	SCORE_ITEMS,
-	SCORE_SECRETS
-};
-
-// [AK] For GetMapRotationInfo
-enum
-{
-	MAPROTATION_Name,
-	MAPROTATION_LumpName,
-	MAPROTATION_Used,
-	MAPROTATION_MinPlayers,
-	MAPROTATION_MaxPlayers
+   GAMEEVENT_ACTOR_DAMAGED,
+   GAMEEVENT_DOMINATION_CONTROL,
+   GAMEEVENT_DOMINATION_POINT
 };
 
 enum : bool {
@@ -1239,6 +1217,60 @@ enum {
    TM_MONTH,
    TM_YEAR,
    TM_WEEKDAY
+};
+
+enum {
+   SCORE_FRAGS,
+   SCORE_POINTS,
+   SCORE_WINS,
+   SCORE_DEATHS,
+   SCORE_KILLS,
+   SCORE_ITEMS,
+   SCORE_SECRETS
+};
+
+enum {
+   MAPROTATION_NAME,
+   MAPROTATION_LUMPNAME,
+   MAPROTATION_USED,
+   MAPROTATION_MINPLAYERS,
+   MAPROTATION_MAXPLAYERS
+};
+
+/*
+enum {
+   POBJ_FLAG_CRUSH = 0x1,
+   POBJ_FLAG_HURT_ON_TOUCH = 0x2,
+   POBJ_FLAG_NO_CARRY_THINGS = 0x4,
+   POBJ_FLAG_NO_ANGLE_CHANGE = 0x8,
+   POBJ_FLAG_SIDE_CRUSH = 0x16
+};
+
+enum {
+   POBJ_FLAGS_CLEAR,
+   POBJ_FLAGS_SET,
+   POBJ_FLAGS_REPLACE = -1
+};
+
+enum {
+   POBJ_MOVE_NORMAL,
+   POBJ_MOVE_OVERRIDE = 0x1,
+   POBJ_MOVE_NOLINK = 0x2,
+   POBJ_MOVE_INDROT = 0x4,
+   POBJ_MOVE_POANGLE = 0x8,
+   POBJ_MOVE_MIRRORED = 0x16,
+   POBJ_MOVE_PERPETUAL = 0x32
+};
+*/
+
+enum
+{
+	GAMELIMIT_FRAGS,
+	GAMELIMIT_TIME,
+	GAMELIMIT_POINTS,
+	GAMELIMIT_DUELS,
+	GAMELIMIT_WINS,
+	GAMELIMIT_WAVES
 };
 
 enum { INT_MIN = -INT_MAX - 1 };
@@ -1518,6 +1550,13 @@ special
 278:Sector_SetCeilingGlow,
 279:Floor_MoveToValueAndCrush,
 280:Ceiling_MoveToValueAndCrush,
+281:Line_SetAutomapFlags(int,int,int):int,
+282:Line_SetAutomapStyle(int,int):int,
+283:Polyobj_StopSound(int):int,
+
+//Eternity
+300:Portal_Define(int,int,int,int,int):int:0,
+301:Line_QuickPortal(int):int:0,
 */
 
 // Extension functions
@@ -1671,10 +1710,27 @@ special
 -144:ExecuteClientScript(int,int;int,int,int,int):int,
 -145:NamedExecuteClientScript(str,int;int,int,int,int):int,
 -146:SendNetworkString(int,str;int):int,
--147:NamedSendNetworkString(str,str;int),
+-147:NamedSendNetworkString(str,str;int):int,
 -148:GetChatMessage(int,int;bool):str,
 -149:GetMapRotationSize():int,
 -150:GetMapRotationInfo(int,int):raw,
+-151:GetCurrentMapPosition():int,
+-152:GetEventResult():int,
+-153:GetActorSectorLocation(int,bool):str,
+-154:ChangeTeamScore(int,int,int;bool):bool,
+-155:SetGameplaySetting(str,raw):bool,
+-156:SetCustomPlayerValue(str,int,raw):bool,
+-157:GetCustomPlayerValue(str,int):raw,
+-158:ResetCustomDataToDefault(str,int):bool,
+-159:LumpOpen(str;int,int):int,
+-160:LumpRead(int,int;int):raw,
+-161:LumpReadString(int,int;int):str,
+-162:LumpReadLocal(int,int,raw;int,int):int,
+-163:LumpReadModule(int,int,raw;int,int):int,
+-164:LumpReadHub(int,int,raw;int,int):int,
+-165:LumpReadGlobal(int,int,raw;int,int):int,
+-166:LumpGetInfo(raw,int):raw,
+-167:LumpClose(int):bool,
 
 // ZDoom/GZDoom.
 /*
@@ -1704,6 +1760,22 @@ special
 /*
 -400:SetSectorGlow,
 -401:SetFogDensity,
+*/
+
+/*
+// K8Vavoom.
+-800:Polyobj_MoveEx(int, int, int, int, int, int, int):bool,
+-801:Polyobj_MoveToEx(int, int, int, int, int, int):bool,
+-802:Polyobj_MoveToSpotEx(int, int, int, int):bool,
+-803:GetPolyobjZ(int):fixed,
+-804:Polyobj_GetFlagsEx(int):int,
+-805:Polyobj_SetFlagsEx(int, int, int):int,
+-806:Polyobj_IsBusy(int):int,
+-807:Polyobj_GetAngle(int):fixed,
+-808:Polyobj_MoveRotateEx(int, int, int, int, int, int, fixed, int):bool,
+-809:Polyobj_MoveToRotateEx(int, int, int, int, int, fixed, int):bool,
+-810:Polyobj_MoveToSpotRotateEx(int, int, int, fixed, int):bool,
+-811:Polyobj_RotateEx(int, int, fixed, int):bool,
 */
 
 // ZDaemon.
