@@ -124,7 +124,7 @@ static void test_cast( struct semantic* semantic, struct expr_test* test,
 static bool perform_cast( struct semantic* semantic, struct cast* cast,
    struct result* operand, struct result* result );
 static bool perform_cast_primitive( struct semantic* semantic,
-   struct cast* cast, struct result* operand, struct result* result );
+   struct cast* cast, struct result* operand, struct result* result, int typedesc );
 static void invalid_cast( struct semantic* semantic, struct cast* cast,
    struct result* operand );
 static void test_suffix( struct semantic* semantic, struct expr_test* test,
@@ -1483,46 +1483,65 @@ static void test_cast( struct semantic* semantic, struct expr_test* test,
 
 static bool perform_cast( struct semantic* semantic, struct cast* cast,
    struct result* operand, struct result* result ) {
-   switch ( s_describe_type( &operand->type ) ) {
+   int typedesc = s_describe_type( &operand->type );
+   switch ( typedesc ) {
    case TYPEDESC_PRIMITIVE:
-      return perform_cast_primitive( semantic, cast, operand, result );
+   case TYPEDESC_ARRAYREF:
+   case TYPEDESC_STRUCTREF: // ugly but it'll hold for now
+      return perform_cast_primitive( semantic, cast, operand, result, typedesc );
    default:
       return false;
    }
 }
 
 static bool perform_cast_primitive( struct semantic* semantic,
-   struct cast* cast, struct result* operand, struct result* result ) {
+   struct cast* cast, struct result* operand, struct result* result, int typedesc ) {
    bool valid = false;
-   switch ( cast->spec ) {
-   case SPEC_RAW:
-   case SPEC_INT:
-      switch ( operand->type.spec ) {
+
+   if ( (typedesc == TYPEDESC_ARRAYREF || typedesc == TYPEDESC_STRUCTREF) && ( operand->type.ref->nullable ) )
+   {
+      switch( cast->spec )
+      {
+         case SPEC_RAW:
+         case SPEC_INT:
+            valid = true;
+            break;
+         default:
+            break;
+      }
+   }
+   else
+   {
+      switch ( cast->spec ) {
       case SPEC_RAW:
       case SPEC_INT:
+         switch ( operand->type.spec ) {
+         case SPEC_RAW:
+         case SPEC_INT:
+         case SPEC_FIXED:
+         case SPEC_BOOL:
+         case SPEC_STR:
+            valid = true;
+            break;
+         default:
+            break;
+         }
+         break;
       case SPEC_FIXED:
       case SPEC_BOOL:
       case SPEC_STR:
-         valid = true;
+         switch ( operand->type.spec ) {
+         case SPEC_RAW:
+         case SPEC_INT:
+            valid = true;
+            break;
+         default:
+            valid = ( cast->spec == operand->type.spec );
+         }
          break;
       default:
          break;
       }
-      break;
-   case SPEC_FIXED:
-   case SPEC_BOOL:
-   case SPEC_STR:
-      switch ( operand->type.spec ) {
-      case SPEC_RAW:
-      case SPEC_INT:
-         valid = true;
-         break;
-      default:
-         valid = ( cast->spec == operand->type.spec );
-      }
-      break;
-   default:
-      break;
    }
    if ( ! valid ) {
       return false;

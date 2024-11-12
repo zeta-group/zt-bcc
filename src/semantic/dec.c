@@ -1379,7 +1379,7 @@ static bool test_scalar_initz( struct semantic* semantic,
    case TYPEDESC_ARRAYREF:
       value->more.arrayref.var = expr.var;
       value->more.arrayref.structure_member = expr.structure_member;
-      value->more.arrayref.diminfo = expr.dim_depth;
+      value->more.arrayref.diminfo = (test->initz_type.spec == SPEC_INT || test->initz_type.spec == SPEC_RAW) ? 0x7FFFFFFF : expr.dim_depth;
       value->type = VALUE_ARRAYREF;
       break;
    case TYPEDESC_STRUCTREF:

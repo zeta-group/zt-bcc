@@ -325,7 +325,8 @@ bool s_common_type( struct type_info* a, struct type_info* b,
 
 bool s_instance_of( struct type_info* type, struct type_info* instance ) {
    bool valid = false;
-   switch ( s_describe_type( type ) ) {
+   int typedesc = s_describe_type( type );
+   switch ( typedesc ) {
    case TYPEDESC_ARRAYREF:
    case TYPEDESC_STRUCTREF:
    case TYPEDESC_FUNCREF:
@@ -337,7 +338,7 @@ bool s_instance_of( struct type_info* type, struct type_info* instance ) {
             ! instance->ref->nullable );
       }
       else {
-         valid = s_same_type( type, instance );
+         valid = s_same_type( type, instance ) || ( (instance->spec == SPEC_INT || instance->spec == SPEC_RAW) && typedesc != TYPEDESC_FUNCREF );
       }
       break;
    case TYPEDESC_ENUM:
