@@ -136,7 +136,6 @@ void s_init( struct semantic* semantic, struct task* task ) {
    semantic->in_localscope = false;
    semantic->strong_type = false;
 
-   semantic->lang = semantic->lib->lang;
    for ( int i = 0; i < ARRAY_SIZE( semantic->deprecations ); ++i ) {
       semantic->deprecations[ i ].registered = false;
       semantic->deprecations[ i ].suppressed = false;
