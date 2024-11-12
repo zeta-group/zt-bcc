@@ -3267,23 +3267,36 @@ static void test_lengthof( struct semantic* semantic, struct expr_test* test,
    struct expr_test operand;
    s_init_expr_test( &operand, false, false );
    test_nested_expr( semantic, test, &operand, call->operand );
-   if ( s_describe_type( &operand.type ) != TYPEDESC_ARRAYREF ) {
+   int typedesc = s_describe_type( &operand.type );
+
+   if ( (typedesc != TYPEDESC_ARRAYREF) && (typedesc != TYPEDESC_STRUCTREF) ) {
       s_diag( semantic, DIAG_POS_ERR, &call->operand->pos,
-         "operand is not an array" );
+         "operand is not an array or structure" );
       s_bail( semantic );
    }
    s_init_type_info_scalar( &result->type, s_spec( semantic, SPEC_INT ) );
    result->complete = true;
    result->usable = true;
+
+   // Null check.
+   if ( s_is_nullable( &operand.type ) ) {
+      semantic->lib->uses_nullable_refs = true;
+   }
+
+   // Structure
+   if(typedesc == TYPEDESC_STRUCTREF) {
+      call->value = operand.type.structure->size;
+      result->value = call->value;
+      result->folded = true;
+      call->operand->folded = true;
+      return;
+   }
+
    // Compile-time evaluation.
    if ( call->operand->folded ) {
       call->value = operand.dim->length;
       result->value = call->value;
       result->folded = true;
-   }
-   // Null check.
-   if ( s_is_nullable( &operand.type ) ) {
-      semantic->lib->uses_nullable_refs = true;
    }
 }
 
