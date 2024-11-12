@@ -11,7 +11,7 @@ private enum
     HEAP_START = HEAP_SIZE - 1 // Don't touch this.
 };
 
-private raw Heap[HEAP_SIZE];
+raw Heap[HEAP_SIZE];
 
 private struct AllocBlock
 {
@@ -233,5 +233,210 @@ raw[]? arrResize (raw[]? arr, int newSize)
 
     return makeArrPtr(newPtr, newSize);
 }
+
+#if 1
+	#define __printf_parms str string, raw i1 = 0, raw i2 = 0, raw i3 = 0, raw i4 = 0, raw i5 = 0, \
+							raw i6 = 0, raw i7 = 0, raw i8 = 0, raw i9 = 0, raw i10 = 0, \
+							raw i11 = 0, raw i12 = 0, raw i13 = 0, raw i14 = 0, \
+							raw i15 = 0, raw i16 = 0
+
+	#define __printf_args string, i1, i2, i3, i4, i5, i6, i7, i8, i9, i10, i11, i12, i13, i14, i15, i16
+
+#define BCSFMT_ACCURATE_FIXED
+
+#ifdef BCSFMT_ACCURATE_FIXED
+
+private void PrintFixedPrec (fixed n)
+{
+	str string;
+	int integerPart = int(n);
+	int fractPart = ((((int)n) & 65535) * 10000) / 65536;
+
+	buildmsg(string = StrParam())
+	{
+		Append(i:integerPart, c:'.');
+
+		if(fractPart < 1)
+		{
+			Append(s:"0000");
+			goto done;
+		}
+		else if(fractPart < 10)
+			Append(s:"000");
+		else if(fractPart < 100)
+			Append(s:"00");
+		else if(fractPart < 1000)
+			Append(s:"0");
+
+		Append(i:fractPart);
+
+		done:
+	}
+
+	>pushscriptvar 1
+	>printstring
+}
+
+#endif
+#endif
+
+private void __putc (int c)
+{
+	>pushscriptvar 0
+	>printcharacter
+}
+
+private void PrintInt (raw i)
+{
+	>pushscriptvar 0
+	>printnumber
+}
+
+private void PrintFixed (raw i)
+{
+	>pushscriptvar 0
+	>PrintFixed
+}
+
+#if 1
+	#define PUSH_PARAMS_ARRAY >pushscriptarray 0
+	#define PUSH_PARAMNUM >pushscriptvar 17
+#endif
+
+private void __printf (__printf_parms)
+{
+	raw params[] = {i1, i2, i3, i4, i5, i6, i7, i8, i9, i10, i11, i12, i13, i14, i15, i16};
+
+	int paramNum;
+
+	int len = strlen(string);
+
+	int ch;
+
+	for(int i = 0; i < len; i++)
+	{
+		ch = string[i];
+
+		if(ch != '%')
+		{
+			__putc(ch);
+		}
+		else
+		{
+			switch(string[++i])
+			{
+			//The actual specifiers themselves.
+			//(assuming they're checked in this order, I'm putting them
+			//first since they alone are more common)
+			case 'i':
+			case 'd':
+				PUSH_PARAMNUM
+				PUSH_PARAMS_ARRAY
+				>printnumber
+				paramNum++;
+			break;
+
+			case 'c':
+				PUSH_PARAMNUM
+				PUSH_PARAMS_ARRAY
+				>printcharacter
+				paramNum++;
+			break;
+
+			case 'f':
+			#ifdef BCSFMT_ACCURATE_FIXED
+				PrintFixedPrec(params[paramNum++]);
+			#else
+				PUSH_PARAMNUM
+				PUSH_PARAMS_ARRAY
+				>printfixed
+				paramNum++;
+			#endif
+			break;
+
+			case 's':
+				PUSH_PARAMNUM
+				PUSH_PARAMS_ARRAY
+				>printstring
+				paramNum++;
+			break;
+
+			case 'n':
+				PUSH_PARAMNUM
+				PUSH_PARAMS_ARRAY
+				>printname
+				paramNum++;
+			break;
+
+			case 'x':
+				PUSH_PARAMNUM
+				PUSH_PARAMS_ARRAY
+				>printhex
+				paramNum++;
+			break;
+
+			case 'b':
+				PUSH_PARAMNUM
+				PUSH_PARAMS_ARRAY
+				>printbinary
+				paramNum++;
+			break;
+
+			case 'k':
+				PUSH_PARAMNUM
+				PUSH_PARAMS_ARRAY
+				>printbind
+				paramNum++;
+			break;
+
+			case 'l':
+				PUSH_PARAMNUM
+				PUSH_PARAMS_ARRAY
+				>printlocalized
+				paramNum++;
+			break;
+
+			case '%':
+				__putc('%');
+			break;
+
+			default:
+				Log(s:"unexpected flag identifier ", c:string[i]);
+			return;
+			}
+		}
+	}
+}
+
+void printf (__printf_parms)
+{
+	buildmsg(Print())
+		{__printf(__printf_args);}
+}
+
+void printboldf (__printf_parms)
+{
+	buildmsg(PrintBold())
+		{__printf(__printf_args);}
+}
+
+void logf (__printf_parms)
+{
+	buildmsg(Log())
+		{__printf(__printf_args);}
+}
+
+str strformat (__printf_parms)
+{
+	str retval;
+
+	buildmsg(retval = StrParam())
+		{__printf(__printf_args);}
+
+	return retval;
+}
+
+#undef __printf_parms
+#undef __printf_args
 
 }
