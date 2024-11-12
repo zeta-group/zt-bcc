@@ -1,0 +1,237 @@
+strict namespace bcs {
+
+#if 1
+#ifndef HEAP_SIZE
+#define HEAP_SIZE 16384
+#endif
+#endif
+
+private enum
+{
+    HEAP_START = HEAP_SIZE - 1 // Don't touch this.
+};
+
+private raw Heap[HEAP_SIZE];
+
+private struct AllocBlock
+{
+    struct AllocBlock? next;
+    int size;
+    bool used;
+};
+
+private struct HeapHead
+{
+    bool init;
+    int allocTime;
+    struct AllocBlock? tail, lastFreed;
+};
+
+// AllocBlock struct
+private enum
+{
+    AB_NEXT,
+    AB_SIZE,
+    AB_USED,
+    AB_SIZEOF // no autBlock flag, not worth cramming in
+};
+
+// HeapHead struct
+private enum
+{
+    HH_INIT,
+    HH_ALLOCTIME, // used by GDCC version
+    HH_TAIL,
+    HH_LASTFREED,
+    HH_SIZEOF
+};
+
+// Main memory allocation function. Returns a pointer to a buffer of the requested size.
+int malloc (int size)
+{
+    struct HeapHead? head = (int)Heap + (HEAP_START - HH_SIZEOF);
+    struct AllocBlock? block;
+
+    if(!head.init)
+    {
+        head.init = true;
+
+        block = (int)Heap + ((int)head - ((size + AB_SIZEOF) - 1));
+
+        block.used = true;
+        block.size = size;
+        block.next = 0;
+
+        head.tail = (int)block;
+
+        return (int)block + AB_SIZEOF;
+    }
+
+    block = head.lastFreed;
+
+    if( block && (block.size >= size) )
+    {
+        head.lastFreed = 0;
+        block.used = true;
+        return (int)block + AB_SIZEOF;
+    }
+
+    block = head.tail;
+
+    do
+    {
+        if(block.used || (size > block.size))
+        {
+            block = block.next;
+            continue;
+        }
+
+        if((block.size - size) >= (AB_SIZEOF + 4))
+        {
+            struct AllocBlock? splitBlock = (int)block + size + AB_SIZEOF;
+
+            splitBlock.used = false;
+            splitBlock.size = block.size - AB_SIZEOF - size;
+            splitBlock.next = block.next;
+
+            block.next = splitBlock;
+            block.size = size;
+        }
+
+        block.used = true;
+
+        return (int)block + AB_SIZEOF;
+
+    } while(block);
+
+    // No acceptable blocks found, so let's "grow" the heap.
+    block = (int)Heap + ((int)head.tail - (AB_SIZEOF + size));
+
+    block.used = true;
+    block.size = size;
+    block.next = head.tail;
+
+    head.tail = block;
+
+    return (int)block + AB_SIZEOF;
+}
+
+// Frees the memory so it is usable by future calls to smMalloc.
+void free (int ptr)
+{
+    if(!ptr)
+        return;
+
+    struct HeapHead? head;
+    struct AllocBlock? block = ptr - AB_SIZEOF;
+    struct AllocBlock? nextBlock = block.next;
+
+    // Should merge blocks here.
+    if( (nextBlock) && (!nextBlock.used) )
+    {
+        block.size += nextBlock.size + AB_SIZEOF;
+        block.next = nextBlock.next;
+    }
+
+    block.used = false;
+
+    head = (int)Heap + (HEAP_START - HH_SIZEOF);
+    head.lastFreed = block;
+}
+
+// Creates a new bigger buffer if needed, copying the contents of the original passed in.
+int realloc (int oldPtr, int size)
+{
+    if(!oldPtr)
+    {
+        if(!size)
+            return 0;
+        return malloc(size);
+    }
+
+    if(!size)
+    {
+        free(oldPtr);
+        return 0;
+    }
+
+    struct AllocBlock? oldBlock = oldPtr - AB_SIZEOF;
+    if(oldBlock.size >= size)
+        return oldPtr;
+
+    int ptr = malloc(size);
+
+    ptr -= (int)Heap;
+    oldPtr -= (int)Heap;
+
+    for(int i = oldBlock.size; i > 0; i--)
+        Heap[ptr+i] = Heap[oldPtr+i];
+
+    ptr += (int)Heap;
+    oldPtr += (int)Heap;
+
+    free(oldPtr);
+    return ptr;
+}
+
+// Debug print function.
+void allocDump ()
+{
+    struct HeapHead? head = (int)Heap + (HEAP_START - HH_SIZEOF);
+    struct AllocBlock? block = head.tail;
+
+    Print(s:"=smAllocDump=");
+	while(block)
+	{
+        Print(i:(int)block - (int)Heap, s:" - next: ", i:(int)block.next - (int)Heap, s:", size: ", x:block.size, s:", used: ", i:(int)block.used & (1<<0), s:", autBlock: ", i:(int)block.used & (1<<2));
+
+        block = block.next;
+	}
+}
+
+// BCC array references are fat pointers:
+// first word is an offset pointing to the first array element
+// second word is an offset pointing to the length of the array
+// inline ASM is of course required to change the length offset
+private raw[]? makeArrPtr (int ptr, int len)
+{
+    raw[]? arr;
+
+    >pushscriptvar 0
+    >assignscriptvar 2 // Write pointer to array.
+    >pushscriptvar 2
+    >pushscriptvar 1
+    >assignmaparray 0 // Write length to first word of allocated space.
+    >pushscriptvar 2
+    >assignscriptvar 3 // Set pointer to length.
+    >incscriptvar 2 // Finally, move the pointer to array start to actually point to the first element.
+
+    return arr;
+}
+
+raw[]? arrNew (int len)
+{
+    int ptr = malloc(len + 1);
+
+    return makeArrPtr(ptr, len);
+}
+
+void arrDelete (raw[]? arr)
+{
+    free((int)arr - 1);
+}
+
+raw[]? arrResize (raw[]? arr, int newSize)
+{
+    int newPtr = realloc((int)arr - 1, newSize + 1);
+
+    if(!newPtr)
+    {
+        Log(s:"Dynarray WARNING: resize to ", i:newSize, s:" FAILED!");
+        return arr;
+    }
+
+    return makeArrPtr(newPtr, newSize);
+}
+
+}
