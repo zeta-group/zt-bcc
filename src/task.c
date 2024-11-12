@@ -435,16 +435,16 @@ static void init_diag_msg( struct task* task, struct diag_msg* msg, int flags,
 static void print_diag( struct task* task, struct diag_msg* msg ) {
    if ( msg->flags & DIAG_FILE ) {
       print_include_history( task, msg, stdout );
-      printf( "%s:", decode_filename( task, msg->file ) );
+      fprintf(stderr, "%s:", decode_filename( task, msg->file ) );
       if ( msg->flags & DIAG_LINE ) {
-         printf( "%d:", msg->line );
+         fprintf(stderr, "%d:", msg->line );
          if ( msg->flags & DIAG_COLUMN ) {
-            printf( "%d:", msg->column );
+            fprintf(stderr, "%d:", msg->column );
          }
       }
-      printf( " " );
+      fprintf(stderr, " " );
    }
-   printf( "%s\n", msg->text.value );
+   fprintf(stderr, "%s\n", msg->text.value );
 }
 
 static void print_include_history( struct task* task, struct diag_msg* msg,
