@@ -741,8 +741,7 @@ void s_follow_path( struct semantic* semantic, struct follower* follower ) {
          s_deprecation( semantic, DEPRECATION_NSDOT ) ) {
          s_diag( semantic, DIAG_WARN | DIAG_POS, &path->pos,
             "accessing a namespace member using `.` is deprecated, use `::` "
-            "instead (to suppress this warning, use the -legacy-ns-dot "
-            "command-line option)" );
+            "instead" );
          s_register_deprecation( semantic, DEPRECATION_NSDOT );
       }
       // Middle.
@@ -1091,9 +1090,7 @@ static void test_nested_namespace_name( struct semantic* semantic,
    if ( s_deprecation( semantic, DEPRECATION_NSDOT ) && fragment->path &&
       fragment->path->next && fragment->path->next->dot_separator ) {
       s_diag( semantic, DIAG_WARN | DIAG_POS, &fragment->path->next->pos,
-         "namespace names separated by `.` is deprecated, use `::` instead "
-         "(to suppress this warning, use the -legacy-ns-dot command-line "
-         "option)" );
+         "namespace names separated by `.` is deprecated, use `::` instead" );
       s_register_deprecation( semantic, DEPRECATION_NSDOT );
    }
 }
