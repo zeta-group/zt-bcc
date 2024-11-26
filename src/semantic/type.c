@@ -338,7 +338,7 @@ bool s_instance_of( struct type_info* type, struct type_info* instance ) {
             ! instance->ref->nullable );
       }
       else {
-         valid = s_same_type( type, instance ) || ( (instance->spec == SPEC_INT || instance->spec == SPEC_RAW) && typedesc != TYPEDESC_FUNCREF );
+         valid = s_same_type( type, instance ) || ( ((type->spec == SPEC_VOID) || (instance->spec == SPEC_VOID)) && (typedesc != TYPEDESC_FUNCREF) );
       }
       break;
    case TYPEDESC_ENUM:
