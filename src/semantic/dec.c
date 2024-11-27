@@ -919,11 +919,11 @@ static bool test_ref_struct( struct semantic* semantic, struct ref_test* test,
 
 static bool test_ref_array( struct semantic* semantic, struct ref_test* test,
    struct ref_array* array ) {
-   /*if ( test->spec == SPEC_VOID && ! array->ref.next ) {
+   if ( (test->spec == SPEC_VOID && ! array->ref.nullable) && ! array->ref.next ) {
       s_diag( semantic, DIAG_POS_ERR, &array->ref.pos,
-         "array reference has void element type" );
+         "non-nullable array reference has void element type" );
       s_bail( semantic );
-   }*/
+   }
    return true;
 }
 
