@@ -338,7 +338,14 @@ bool s_instance_of( struct type_info* type, struct type_info* instance ) {
             ! instance->ref->nullable );
       }
       else {
-         valid = s_same_type( type, instance ) || ( ((type->spec == SPEC_VOID) || (instance->spec == SPEC_VOID)) && (typedesc != TYPEDESC_FUNCREF) );
+         int instypedesc = s_describe_type( instance );
+         int eitherint = ((instypedesc == TYPEDESC_ARRAYREF) || (instypedesc == TYPEDESC_STRUCTREF));
+         eitherint ^= ((typedesc == TYPEDESC_ARRAYREF) || (typedesc == TYPEDESC_STRUCTREF));
+
+         if(eitherint)
+            valid = true;
+         else
+            valid = s_same_type( type, instance ) || ( ((type->spec == SPEC_VOID) || (instance->spec == SPEC_VOID)) && (typedesc != TYPEDESC_FUNCREF) );
       }
       break;
    case TYPEDESC_ENUM:
