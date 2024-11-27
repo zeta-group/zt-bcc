@@ -890,6 +890,7 @@ static void read_ref( struct parse* parse, struct ref_reading* reading ) {
    case TK_SCRIPT:
    case TK_BIT_AND:
    case TK_QUESTION_MARK:
+   case TK_STAR:
       read_struct_ref( parse, reading );
       break;
    default:
@@ -917,13 +918,15 @@ static void read_ref( struct parse* parse, struct ref_reading* reading ) {
       if ( parse->tk == TK_BIT_AND ) {
          p_read_tk( parse );
       }
-      else if ( parse->tk == TK_QUESTION_MARK ) {
+      else if ( (parse->tk == TK_STAR) || (parse->tk == TK_QUESTION_MARK) ) {
          reading->head->nullable = true;
+         reading->head->question_mark = (parse->tk == TK_QUESTION_MARK);
          p_read_tk( parse );
       }
       else {
          p_unexpect_diag( parse );
          p_unexpect_item( parse, NULL, TK_BIT_AND );
+         p_unexpect_item( parse, NULL, TK_STAR );
          p_unexpect_last( parse, NULL, TK_QUESTION_MARK );
          p_bail( parse );
       }
@@ -946,7 +949,9 @@ static void prepend_ref( struct ref_reading* reading, struct ref* part ) {
 static void read_struct_ref( struct parse* parse,
    struct ref_reading* reading ) {
    bool nullable = false;
-   if ( parse->tk == TK_QUESTION_MARK ) {
+   bool question_mark = false;
+   if ( (parse->tk == TK_STAR) || (parse->tk == TK_QUESTION_MARK) ) {
+      question_mark = ( parse->tk == TK_QUESTION_MARK );
       nullable = true;
    }
    else {
@@ -955,6 +960,7 @@ static void read_struct_ref( struct parse* parse,
    struct ref_struct* part = mem_alloc( sizeof( *part ) );
    init_ref( &part->ref, REF_STRUCTURE, &parse->tk_pos );
    part->ref.nullable = nullable;
+   part->ref.question_mark = question_mark;
    part->storage = STORAGE_MAP;
    part->storage_index = 0;
    prepend_ref( reading, &part->ref );
@@ -981,7 +987,7 @@ static bool is_array_ref( struct parse* parse ) {
             break;
          }
       }
-      if ( iter.token->type == TK_BIT_AND ||
+      if ( iter.token->type == TK_BIT_AND || iter.token->type == TK_STAR ||
          iter.token->type == TK_QUESTION_MARK ) {
          return true;
       }

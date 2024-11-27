@@ -15,7 +15,7 @@ raw Heap[HEAP_SIZE];
 
 private struct AllocBlock
 {
-    struct AllocBlock? next;
+    struct AllocBlock* next;
     int size;
     bool used;
 };
@@ -24,7 +24,7 @@ private struct HeapHead
 {
     bool init;
     int allocTime;
-    struct AllocBlock? tail, lastFreed;
+    struct AllocBlock* tail, lastFreed;
 };
 
 // AllocBlock struct
@@ -49,8 +49,8 @@ private enum
 // Main memory allocation function. Returns a pointer to a buffer of the requested size.
 private int malloc (int size)
 {
-    struct HeapHead? head = (int)Heap + (HEAP_START - HH_SIZEOF);
-    struct AllocBlock? block;
+    struct HeapHead* head = (int)Heap + (HEAP_START - HH_SIZEOF);
+    struct AllocBlock* block;
 
     if(!head.init)
     {
@@ -88,7 +88,7 @@ private int malloc (int size)
 
         if((block.size - size) >= (AB_SIZEOF + 4))
         {
-            struct AllocBlock? splitBlock = (int)block + size + AB_SIZEOF;
+            struct AllocBlock* splitBlock = (int)block + size + AB_SIZEOF;
 
             splitBlock.used = false;
             splitBlock.size = block.size - AB_SIZEOF - size;
@@ -122,9 +122,9 @@ private void free (int ptr)
     if(!ptr)
         return;
 
-    struct HeapHead? head;
-    struct AllocBlock? block = ptr - AB_SIZEOF;
-    struct AllocBlock? nextBlock = block.next;
+    struct HeapHead* head;
+    struct AllocBlock* block = ptr - AB_SIZEOF;
+    struct AllocBlock* nextBlock = block.next;
 
     // Should merge blocks here.
     if( (nextBlock) && (!nextBlock.used) )
@@ -155,7 +155,7 @@ private int realloc (int oldPtr, int size)
         return 0;
     }
 
-    struct AllocBlock? oldBlock = oldPtr - AB_SIZEOF;
+    struct AllocBlock* oldBlock = oldPtr - AB_SIZEOF;
     if(oldBlock.size >= size)
         return oldPtr;
 
@@ -177,8 +177,8 @@ private int realloc (int oldPtr, int size)
 // Debug print function.
 void allocDump ()
 {
-    struct HeapHead? head = (int)Heap + (HEAP_START - HH_SIZEOF);
-    struct AllocBlock? block = head.tail;
+    struct HeapHead* head = (int)Heap + (HEAP_START - HH_SIZEOF);
+    struct AllocBlock* block = head.tail;
 
     Print(s:"=smAllocDump=");
 	while(block)
@@ -193,9 +193,9 @@ void allocDump ()
 // first word is an offset pointing to the first array element
 // second word is an offset pointing to the length of the array
 // inline ASM is of course required to change the length offset
-private void[]? makeArrPtr (int ptr, int len)
+private void[]* makeArrPtr (int ptr, int len)
 {
-    void[]? arr;
+    void[]* arr;
 
     >pushscriptvar 0
     >assignscriptvar 2 // Write pointer to array.
@@ -209,19 +209,19 @@ private void[]? makeArrPtr (int ptr, int len)
     return arr;
 }
 
-private void[]? arrNew (int len)
+private void[]* arrNew (int len)
 {
     int ptr = malloc(len + 1);
 
     return makeArrPtr(ptr, len);
 }
 
-private void arrDelete (void[]? arr)
+private void arrDelete (void[]* arr)
 {
     free((int)arr - 1);
 }
 
-private void[]? arrResize (void[]? arr, int newSize)
+private void[]* arrResize (void[]* arr, int newSize)
 {
     int newPtr = realloc((int)arr - 1, newSize + 1);
 

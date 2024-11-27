@@ -128,6 +128,9 @@ enum deprecation {
    // Description: using the Length() function of strings. Recommend using
    // StrLen() instead.
    DEPRECATION_ASSOCFUNCLENGTHSTR,
+   // Description: using `?` for nullable references. Recommend using `*`
+   // instead.
+   DEPRECATION_QUESTIONMARKREF,
    DEPRECATION_TOTAL
 };
 

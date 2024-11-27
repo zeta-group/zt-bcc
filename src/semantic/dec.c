@@ -894,8 +894,16 @@ static bool test_ref( struct semantic* semantic, struct ref_test* test ) {
       if ( ! resolved ) {
          return false;
       }
+
+      if ( s_deprecation( semantic, DEPRECATION_QUESTIONMARKREF ) && ref->question_mark ) {
+         s_diag( semantic, DIAG_WARN | DIAG_POS, &ref->pos,
+            "nullable references specified by `?` is deprecated, use `*` instead" );
+         s_register_deprecation( semantic, DEPRECATION_QUESTIONMARKREF );
+      }
+
       ref = ref->next;
    }
+
    return true;
 }
 
