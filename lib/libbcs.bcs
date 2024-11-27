@@ -47,7 +47,7 @@ private enum
 };
 
 // Main memory allocation function. Returns a pointer to a buffer of the requested size.
-int malloc (int size)
+private int malloc (int size)
 {
     struct HeapHead? head = (int)Heap + (HEAP_START - HH_SIZEOF);
     struct AllocBlock? block;
@@ -117,7 +117,7 @@ int malloc (int size)
 }
 
 // Frees the memory so it is usable by future calls to smMalloc.
-void free (int ptr)
+private void free (int ptr)
 {
     if(!ptr)
         return;
@@ -140,7 +140,7 @@ void free (int ptr)
 }
 
 // Creates a new bigger buffer if needed, copying the contents of the original passed in.
-int realloc (int oldPtr, int size)
+private int realloc (int oldPtr, int size)
 {
     if(!oldPtr)
     {
@@ -193,9 +193,9 @@ void allocDump ()
 // first word is an offset pointing to the first array element
 // second word is an offset pointing to the length of the array
 // inline ASM is of course required to change the length offset
-private raw[]? makeArrPtr (int ptr, int len)
+private void[]? makeArrPtr (int ptr, int len)
 {
-    raw[]? arr;
+    void[]? arr;
 
     >pushscriptvar 0
     >assignscriptvar 2 // Write pointer to array.
@@ -209,19 +209,19 @@ private raw[]? makeArrPtr (int ptr, int len)
     return arr;
 }
 
-raw[]? arrNew (int len)
+private void[]? arrNew (int len)
 {
     int ptr = malloc(len + 1);
 
     return makeArrPtr(ptr, len);
 }
 
-void arrDelete (raw[]? arr)
+private void arrDelete (void[]? arr)
 {
     free((int)arr - 1);
 }
 
-raw[]? arrResize (raw[]? arr, int newSize)
+private void[]? arrResize (void[]? arr, int newSize)
 {
     int newPtr = realloc((int)arr - 1, newSize + 1);
 
