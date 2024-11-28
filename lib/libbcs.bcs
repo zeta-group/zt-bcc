@@ -2,7 +2,7 @@ strict namespace bcs {
 
 #if 1
 #ifndef HEAP_SIZE
-#define HEAP_SIZE 16384
+#define HEAP_SIZE 65536 // around 250KB
 #endif
 #endif
 
