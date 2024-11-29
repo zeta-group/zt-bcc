@@ -4,7 +4,11 @@ strict namespace bcs {
 #ifndef HEAP_SIZE
 #define HEAP_SIZE 65536 // around 250KB
 #endif
+
+#define _LIBBCS_REV "0.10.0-alpha-2"
 #endif
+
+special -44:__libbcs_CallACS(str;raw,raw,raw,raw):int;
 
 private enum
 {
@@ -27,36 +31,19 @@ private struct HeapHead
     struct AllocBlock* tail, lastFreed;
 };
 
-// AllocBlock struct
-private enum
-{
-    AB_NEXT,
-    AB_SIZE,
-    AB_USED,
-    AB_SIZEOF // no autBlock flag, not worth cramming in
-};
-
-// HeapHead struct
-private enum
-{
-    HH_INIT,
-    HH_ALLOCTIME, // used by GDCC version
-    HH_TAIL,
-    HH_LASTFREED,
-    HH_SIZEOF
-};
-
 // Main memory allocation function. Returns a pointer to a buffer of the requested size.
 private int malloc (int size)
 {
-    struct HeapHead* head = (int)Heap + (HEAP_START - HH_SIZEOF);
+    struct HeapHead* head;
     struct AllocBlock* block;
+
+    head = (int)Heap + (HEAP_START - lengthof(head));
 
     if(!head.init)
     {
         head.init = true;
 
-        block = (int)Heap + ((int)head - ((size + AB_SIZEOF) - 1));
+        block = (int)Heap + ((int)head - ((size + lengthof(block)) - 1));
 
         block.used = true;
         block.size = size;
@@ -64,7 +51,7 @@ private int malloc (int size)
 
         head.tail = (int)block;
 
-        return (int)block + AB_SIZEOF;
+        return (int)block + lengthof(block);
     }
 
     block = head.lastFreed;
@@ -73,7 +60,7 @@ private int malloc (int size)
     {
         head.lastFreed = 0;
         block.used = true;
-        return (int)block + AB_SIZEOF;
+        return (int)block + lengthof(block);
     }
 
     block = head.tail;
@@ -86,12 +73,12 @@ private int malloc (int size)
             continue;
         }
 
-        if((block.size - size) >= (AB_SIZEOF + 4))
+        if((block.size - size) >= (lengthof(block) + 4))
         {
-            struct AllocBlock* splitBlock = (int)block + size + AB_SIZEOF;
+            struct AllocBlock* splitBlock = (int)block + size + lengthof(block);
 
             splitBlock.used = false;
-            splitBlock.size = block.size - AB_SIZEOF - size;
+            splitBlock.size = block.size - lengthof(block) - size;
             splitBlock.next = block.next;
 
             block.next = splitBlock;
@@ -100,12 +87,12 @@ private int malloc (int size)
 
         block.used = true;
 
-        return (int)block + AB_SIZEOF;
+        return (int)block + lengthof(block);
 
     } while(block);
 
     // No acceptable blocks found, so let's "grow" the heap.
-    block = (int)Heap + ((int)head.tail - (AB_SIZEOF + size));
+    block = (int)Heap + ((int)head.tail - (lengthof(block) + size));
 
     block.used = true;
     block.size = size;
@@ -113,7 +100,7 @@ private int malloc (int size)
 
     head.tail = block;
 
-    return (int)block + AB_SIZEOF;
+    return (int)block + lengthof(block);
 }
 
 // Frees the memory so it is usable by future calls to smMalloc.
@@ -123,19 +110,21 @@ private void free (int ptr)
         return;
 
     struct HeapHead* head;
-    struct AllocBlock* block = ptr - AB_SIZEOF;
-    struct AllocBlock* nextBlock = block.next;
+    struct AllocBlock* block, nextBlock;
+
+    block = ptr - lengthof(block);
+    nextBlock = block.next;
 
     // Should merge blocks here.
     if( (nextBlock) && (!nextBlock.used) )
     {
-        block.size += nextBlock.size + AB_SIZEOF;
+        block.size += nextBlock.size + lengthof(block);
         block.next = nextBlock.next;
     }
 
     block.used = false;
 
-    head = (int)Heap + (HEAP_START - HH_SIZEOF);
+    head = (int)Heap + (HEAP_START - lengthof(head));
     head.lastFreed = block;
 }
 
@@ -155,7 +144,10 @@ private int realloc (int oldPtr, int size)
         return 0;
     }
 
-    struct AllocBlock* oldBlock = oldPtr - AB_SIZEOF;
+    struct AllocBlock* oldBlock;
+
+    oldBlock = oldPtr - lengthof(oldBlock);
+
     if(oldBlock.size >= size)
         return oldPtr;
 
@@ -174,11 +166,32 @@ private int realloc (int oldPtr, int size)
     return ptr;
 }
 
+Script _LIBBCS_REV "-alloca" (int ptr)
+{
+	if(ptr)
+	{
+		Delay(1);
+		free(ptr);
+	}
+}
+
+private int alloca (int size)
+{
+	int ptr = malloc(size);
+
+	__libbcs_CallACS(_LIBBCS_REV "-alloca", ptr);
+
+	return ptr;
+}
+
 // Debug print function.
 void allocDump ()
 {
-    struct HeapHead* head = (int)Heap + (HEAP_START - HH_SIZEOF);
-    struct AllocBlock* block = head.tail;
+    struct HeapHead* head;
+    struct AllocBlock* block;
+
+    head = (int)Heap + (HEAP_START - lengthof(head));
+    block = head.tail;
 
     Print(s:"=smAllocDump=");
 	while(block)
@@ -325,9 +338,6 @@ private void __printf (__printf_parms)
 		{
 			switch(string[++i])
 			{
-			//The actual specifiers themselves.
-			//(assuming they're checked in this order, I'm putting them
-			//first since they alone are more common)
 			case 'i':
 			case 'd':
 				PUSH_PARAMNUM
