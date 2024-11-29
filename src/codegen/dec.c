@@ -572,7 +572,7 @@ static void write_nested_funcs( struct codegen* codegen,
          }
          // The argument-holding area should have at least one variable, to
          // temporarily hold the return-value.
-         if ( func->return_spec != SPEC_VOID ) {
+         if ( func->return_spec != SPEC_VOID || func->ref ) {
             if ( ! writing->args_size ) {
                writing->args_size = 1;
             }
@@ -655,7 +655,7 @@ static void write_one_nestedfunc( struct codegen* codegen,
    c_append_node( codegen, &epilogue_point->node );
    // Temporarily save the return-value so we can restore the variables.
    int return_var = writing->temps_start;
-   if ( func->return_spec != SPEC_VOID ) {
+   if ( func->return_spec != SPEC_VOID || func->ref ) {
       if ( impl->recursive == RECURSIVE_POSSIBLY ) {
          if ( impl->size > 0 ) {
             c_pcd( codegen, PCD_ASSIGNSCRIPTVAR, return_var );
