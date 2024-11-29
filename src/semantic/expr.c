@@ -1662,6 +1662,12 @@ static void test_subscript_array( struct semantic* semantic,
    struct expr_test index;
    s_init_expr_test( &index, true, false );
    test_nested_expr( semantic, test, &index, subscript->index );
+   if( lside->type.spec == SPEC_VOID ) {
+      s_diag( semantic, DIAG_POS_ERR, &subscript->index->pos,
+              "cannot index a void array pointer", subscript->index->value );
+      s_bail( semantic );
+   }
+
    // Index must be of integer type.
    if ( ! s_same_type( &index.type, &semantic->type_int ) ) {
       s_type_mismatch( semantic, "index", &index.type,
