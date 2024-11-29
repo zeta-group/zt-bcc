@@ -5,7 +5,7 @@ strict namespace bcs {
 #define HEAP_SIZE 65536 // around 250KB
 #endif
 
-#define _LIBBCS_REV "0.10.0-alpha-2"
+#define _LIBBCS_REV "0100-alpha-2"
 #endif
 
 special -44:__libbcs_CallACS(str;raw,raw,raw,raw):int;
@@ -15,7 +15,7 @@ private enum
     HEAP_START = HEAP_SIZE - 1 // Don't touch this.
 };
 
-raw Heap[HEAP_SIZE];
+private raw Heap[HEAP_SIZE];
 
 private struct AllocBlock
 {
