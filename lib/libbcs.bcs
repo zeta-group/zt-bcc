@@ -101,7 +101,10 @@ private int malloc (int size)
     head.tail = block;
 
     if((int)block < (int)Heap)
-		Log(s:"libbcs malloc ERROR: heap overflow! HEAP_SIZE is currently ", i:HEAP_SIZE);
+    {
+		Log(s:"\cglibbcs malloc ERROR: heap overflow! HEAP_SIZE is currently ", i:HEAP_SIZE);
+		return -1;
+	}
 
     return (int)block + lengthof(block);
 }
@@ -243,7 +246,7 @@ private void[]* arrResize (void[]* arr, int newSize)
 
     if(!newPtr)
     {
-        Log(s:"Dynarray WARNING: resize to ", i:newSize, s:" FAILED!");
+        Log(s:"\ckDynarray WARNING: resize to ", i:newSize, s:" FAILED!");
         return arr;
     }
 
