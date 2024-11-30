@@ -2345,8 +2345,11 @@ static void visit_shary_ref_var( struct codegen* codegen,
       }
       push_element( codegen, STORAGE_MAP, codegen->shary.index );
    }
-   result->storage = STORAGE_MAP;
-   result->index = codegen->shary.index;
+
+   // Dirty hack. I moved both storage and index to the first new members of ref_array/struct.
+   // This shouldn't cause any issues, but ideally it shouldn't be done this way.
+   result->storage = ((struct ref_array*)var->ref)->storage;
+   result->index = (result->storage != STORAGE_MAP) ? ((struct ref_array*)var->ref)->storage_index : codegen->shary.index;
    result->status = R_ARRAYINDEX;
 }
 
@@ -2368,8 +2371,10 @@ static void visit_ref_var( struct codegen* codegen, struct result* result,
             c_update_dimtrack( codegen );
          }
       }
-      result->storage = STORAGE_MAP;
-      result->index = codegen->shary.index;
+
+      // Same note as in visit_shary_ref_var
+      result->storage = ((struct ref_array*)var->ref)->storage;
+      result->index = (result->storage != STORAGE_MAP) ? ((struct ref_array*)var->ref)->storage_index : codegen->shary.index;
       result->status = R_ARRAYINDEX;
    }
    else {
@@ -2783,7 +2788,7 @@ static bool push_offset_scale_factor( struct codegen* codegen,
          c_push_dimtrack( codegen );
          c_pcd( codegen, PCD_PUSHNUMBER, 1 );
          c_pcd( codegen, PCD_ADD );
-         c_pcd( codegen, PCD_PUSHMAPARRAY, codegen->shary.index );
+         push_element( codegen, result->storage, result->index );
          return true;
       }
       // Structure element.
@@ -2835,38 +2840,38 @@ static void push_ref_array_length( struct codegen* codegen,
    // Sub-array.
    if ( dim_count > 1 ) {
       c_pcd( codegen, PCD_DUP );
-      c_pcd( codegen, PCD_PUSHMAPARRAY, codegen->shary.index );
+      push_element( codegen, result->storage, result->index );
       c_pcd( codegen, PCD_SWAP );
       c_pcd( codegen, PCD_PUSHNUMBER, 1 );
       c_pcd( codegen, PCD_ADD );
-      c_pcd( codegen, PCD_PUSHMAPARRAY, codegen->shary.index );
+      push_element( codegen, result->storage, result->index );
       c_pcd( codegen, PCD_DIVIDE );
    }
    // Reference element.
    else if ( result->ref->next ) {
       if ( result->ref->next->type == REF_ARRAY ) {
-         c_pcd( codegen, PCD_PUSHMAPARRAY, codegen->shary.index );
+         push_element( codegen, result->storage, result->index );
          c_pcd( codegen, PCD_PUSHNUMBER, ARRAYREF_SIZE );
          c_pcd( codegen, PCD_DIVIDE );
       }
       else {
-         c_pcd( codegen, PCD_PUSHMAPARRAY, codegen->shary.index );
+         push_element( codegen, result->storage, result->index );
       }
    }
    // Structure element.
    else if ( result->structure ) {
       if ( result->structure->size > 1 ) {
-         c_pcd( codegen, PCD_PUSHMAPARRAY, codegen->shary.index );
+         push_element( codegen, result->storage, result->index );
          c_pcd( codegen, PCD_PUSHNUMBER, result->structure->size );
          c_pcd( codegen, PCD_DIVIDE );
       }
       else {
-         c_pcd( codegen, PCD_PUSHMAPARRAY, codegen->shary.index );
+         push_element( codegen, result->storage, result->index );
       }
    }
    // Primitive element.
    else {
-      c_pcd( codegen, PCD_PUSHMAPARRAY, codegen->shary.index );
+      push_element( codegen, result->storage, result->index );
    }
 }
 

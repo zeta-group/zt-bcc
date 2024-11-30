@@ -946,10 +946,34 @@ static void prepend_ref( struct ref_reading* reading, struct ref* part ) {
    reading->head = part;
 }
 
+static void read_ref_storage ( struct parse *parse, int *storage, int *storage_index )
+{
+   *storage = STORAGE_MAP;
+   *storage_index = 0;
+
+   if( (parse->tk == TK_WORLD) || (parse->tk == TK_GLOBAL) )
+   {
+      *storage = (parse->tk == TK_WORLD) ? STORAGE_WORLD : STORAGE_GLOBAL;
+      p_read_tk( parse );
+
+      p_test_tk( parse, TK_COLON );
+      p_read_tk( parse );
+
+      p_test_tk( parse, TK_LIT_DECIMAL );
+      *storage_index = p_extract_literal_value( parse );
+      p_read_tk( parse );
+   }
+}
+
 static void read_struct_ref( struct parse* parse,
    struct ref_reading* reading ) {
+   int storage;
+   int storage_index;
    bool nullable = false;
    bool question_mark = false;
+
+   read_ref_storage( parse, &storage, &storage_index );
+
    if ( (parse->tk == TK_STAR) || (parse->tk == TK_QUESTION_MARK) ) {
       question_mark = ( parse->tk == TK_QUESTION_MARK );
       nullable = true;
@@ -961,8 +985,8 @@ static void read_struct_ref( struct parse* parse,
    init_ref( &part->ref, REF_STRUCTURE, &parse->tk_pos );
    part->ref.nullable = nullable;
    part->ref.question_mark = question_mark;
-   part->storage = STORAGE_MAP;
-   part->storage_index = 0;
+   part->storage = storage;
+   part->storage_index = storage_index;
    prepend_ref( reading, &part->ref );
    p_read_tk( parse );
 }
@@ -987,6 +1011,10 @@ static bool is_array_ref( struct parse* parse ) {
             break;
          }
       }
+
+      if( iter.token->type == TK_WORLD || iter.token->type == TK_GLOBAL )
+         return true;
+
       if ( iter.token->type == TK_BIT_AND || iter.token->type == TK_STAR ||
          iter.token->type == TK_QUESTION_MARK ) {
          return true;
@@ -997,6 +1025,8 @@ static bool is_array_ref( struct parse* parse ) {
 
 static void read_array_ref( struct parse* parse,
    struct ref_reading* reading ) {
+   int storage;
+   int storage_index;
    struct pos pos = parse->tk_pos;
    int count = 0;
    while ( parse->tk == TK_BRACKET_L ) {
@@ -1005,11 +1035,14 @@ static void read_array_ref( struct parse* parse,
       p_read_tk( parse );
       ++count;
    }
+
+   read_ref_storage( parse, &storage, &storage_index );
+
    struct ref_array* part = mem_alloc( sizeof( *part ) );
    init_ref( &part->ref, REF_ARRAY, &pos );
    part->dim_count = count;
-   part->storage = STORAGE_MAP;
-   part->storage_index = 0;
+   part->storage = storage;
+   part->storage_index = storage_index;
    prepend_ref( reading, &part->ref );
 }
 

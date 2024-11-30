@@ -781,7 +781,7 @@ static void merge_ref( struct semantic* semantic, struct spec_test* test,
       if ( alias->dim ) {
          struct type_info type;
          s_init_type_info( &type, alias->ref, alias->structure,
-            alias->enumeration, alias->dim, alias->spec, STORAGE_MAP );
+            alias->enumeration, alias->dim, alias->spec, ((struct ref_struct *)alias->ref)->storage );
          struct type_snapshot snapshot;
          s_take_type_snapshot( &type, &snapshot );
          if ( ref == test->ref ) {

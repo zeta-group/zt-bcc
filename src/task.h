@@ -269,9 +269,9 @@ struct ref_struct {
 
 struct ref_array {
    struct ref ref;
-   int dim_count;
    int storage;
    int storage_index;
+   int dim_count;
 };
 
 struct ref_func {
