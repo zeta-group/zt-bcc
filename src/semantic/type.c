@@ -220,11 +220,11 @@ static bool same_ref( struct ref* a, struct ref* b ) {
 }
 
 static bool same_ref_struct( struct ref_struct* a, struct ref_struct* b ) {
-   return ( a->storage == b->storage );
+   return ( (a->storage == b->storage) && (a->storage_index == b->storage_index) );
 }
 
 static bool same_ref_array( struct ref_array* a, struct ref_array* b ) {
-   return ( a->dim_count == b->dim_count && a->storage == b->storage );
+   return ( (a->dim_count == b->dim_count) && (a->storage == b->storage) && (a->storage_index == b->storage_index) );
 }
 
 static bool same_ref_func( struct ref_func* a, struct ref_func* b ) {
@@ -444,12 +444,12 @@ static void present_ref( struct ref* ref, struct str* string ) {
          }
          switch ( part->storage ) {
          case STORAGE_LOCAL: str_append( string, " local" ); break;
-         case STORAGE_WORLD: str_append( string, " world" ); break;
-         case STORAGE_GLOBAL: str_append( string, " global" ); break;
+         case STORAGE_WORLD: str_append( string, " world:" ); str_append_number( string, part->storage_index ); break;
+         case STORAGE_GLOBAL: str_append( string, " global:" ); str_append_number( string, part->storage_index );  break;
          default: break;
          }
          if ( ref->nullable ) {
-            str_append( string, "?" );
+            str_append( string, "*" );
          }
          else {
             str_append( string, "&" );
@@ -459,8 +459,8 @@ static void present_ref( struct ref* ref, struct str* string ) {
          struct ref_struct* structure = ( struct ref_struct* ) ref;
          switch ( structure->storage ) {
          case STORAGE_LOCAL: str_append( string, " local" ); break;
-         case STORAGE_WORLD: str_append( string, " world" ); break;
-         case STORAGE_GLOBAL: str_append( string, " global" ); break;
+         case STORAGE_WORLD: str_append( string, " world:" ); str_append_number( string, structure->storage_index ); break;
+         case STORAGE_GLOBAL: str_append( string, " global:" ); str_append_number( string, structure->storage_index ); break;
          default: break;
          }
          if ( ref->nullable ) {
@@ -481,7 +481,7 @@ static void present_ref( struct ref* ref, struct str* string ) {
             str_append( string, " local" );
          }
          if ( ref->nullable ) {
-            str_append( string, "?" );
+            str_append( string, "*" );
          }
          else {
             str_append( string, "&" );

@@ -62,7 +62,7 @@ void c_init( struct codegen* codegen, struct task* task ) {
    codegen->shary.diminfo_offset = 0;
    codegen->shary.data_offset = 0;
    codegen->shary.dim_counter_var = false;
-   codegen->shary.used = false;
+   codegen->shary.used = true;
    codegen->null_handler = NULL;
    codegen->object_size = 0;
    codegen->dummy_script_offset = 0;
@@ -133,7 +133,7 @@ static void clarify_vars( struct codegen* codegen ) {
    while ( ! list_end( &i ) ) {
       struct var* var = list_data( &i );
       if ( var->storage == STORAGE_MAP && ( var->desc == DESC_ARRAY ||
-         var->desc == DESC_STRUCTVAR ) && var->hidden && var->addr_taken ) {
+         var->desc == DESC_STRUCTVAR ) && var->hidden /*&& var->addr_taken*/ ) {
          list_append( &codegen->shary.vars, var );
       }
       list_next( &i );
@@ -149,7 +149,8 @@ static void clarify_vars( struct codegen* codegen ) {
    list_iterate( &codegen->task->library_main->vars, &i );
    while ( ! list_end( &i ) ) {
       struct var* var = list_data( &i );
-      if ( var->storage == STORAGE_MAP && var->hidden && ! var->addr_taken ) {
+      if ( var->storage == STORAGE_MAP && var->hidden && ( var->desc != DESC_ARRAY &&
+         var->desc != DESC_STRUCTVAR )  /*! var->addr_taken*/ ) {
          if ( count < MAX_MAP_LOCATIONS ) {
             list_append( &codegen->vars, var );
             ++count;
@@ -163,12 +164,12 @@ static void clarify_vars( struct codegen* codegen ) {
       list_next( &i );
    }
    // Shared array is used and needs to be reserved.
-   if ( list_size( &codegen->shary.vars ) > 1 ) {
+   if ( list_size( &codegen->shary.vars ) > 0 ) {
       codegen->shary.used = true;
    }
    // When the shared array contains a single variable and the variable is not
    // used by a reference, give the index of the shared array to the variable.
-   else if ( list_size( &codegen->shary.vars ) == 1 ) {
+   /*else if ( list_size( &codegen->shary.vars ) == 1 ) {
       struct var* var = list_head( &codegen->shary.vars );
       if ( var->addr_taken ) {
          codegen->shary.used = true;
@@ -176,7 +177,7 @@ static void clarify_vars( struct codegen* codegen ) {
       else {
          list_append( &codegen->vars, var );
       }
-   }
+   }*/
    // Shared array not needed.
    else {
       --count;
@@ -307,7 +308,7 @@ static void setup_diminfo( struct codegen* codegen ) {
    list_iterate( &codegen->task->library_main->vars, &i );
    while ( ! list_end( &i ) ) {
       struct var* var = list_data( &i );
-      if ( var->dim && var->addr_taken ) {
+      if ( var->dim && var->hidden ) {
          var->diminfo_start = append_dim( codegen, var->dim );
       }
       list_next( &i );
@@ -318,7 +319,7 @@ static void setup_diminfo( struct codegen* codegen ) {
       struct structure* structure = list_data( &i );
       struct structure_member* member = structure->member;
       while ( member ) {
-         if ( member->dim && member->addr_taken ) {
+         if ( member->dim && structure->hidden /*member->addr_taken*/ ) {
             member->diminfo_start = append_dim( codegen, member->dim );
          }
          member = member->next;

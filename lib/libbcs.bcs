@@ -1,8 +1,13 @@
 strict namespace bcs {
 
 #if 1
+#ifndef PTR_SPC
+#define PTR_SPC
 #ifndef HEAP_SIZE
 #define HEAP_SIZE 65536 // around 250KB
+#endif
+#else
+#define __LIBBCS_NO_LOCAL_HEAP
 #endif
 
 #define _LIBBCS_REV "0100-alpha-2"
@@ -10,16 +15,23 @@ strict namespace bcs {
 
 special -44:__libbcs_CallACS(str;raw,raw,raw,raw):int;
 
+#ifndef __LIBBCS_NO_LOCAL_HEAP
+private raw _Heap[HEAP_SIZE];
+
 private enum
 {
-    HEAP_START = HEAP_SIZE - 1 // Don't touch this.
+    HEAP_START = (HEAP_SIZE - 1) + (int)_Heap // Don't touch this.
 };
-
-private raw Heap[HEAP_SIZE];
+#else
+private enum
+{
+	HEAP_START = 0xFFFEFFFF
+};
+#endif
 
 private struct AllocBlock
 {
-    struct AllocBlock* next;
+    struct AllocBlock PTR_SPC* next;
     int size;
     bool used;
 };
@@ -27,23 +39,27 @@ private struct AllocBlock
 private struct HeapHead
 {
     bool init;
-    int allocTime;
-    struct AllocBlock* tail, lastFreed;
+#ifdef __LIBBCS_NO_LOCAL_HEAP
+    int allocTime; // only needed for safe-malloc compat, which isn't an issue with a local heap
+#endif
+    struct AllocBlock PTR_SPC* tail, lastFreed;
 };
 
 // Main memory allocation function. Returns a pointer to a buffer of the requested size.
 private int malloc (int size)
 {
-    struct HeapHead* head;
-    struct AllocBlock* block;
+    struct HeapHead PTR_SPC* head;
+    struct AllocBlock PTR_SPC* block;
 
-    head = (int)Heap + (HEAP_START - lengthof(head));
+	//raw[]* unused = Heap;
+
+    head = (HEAP_START - lengthof(head));
 
     if(!head.init)
     {
         head.init = true;
 
-        block = (int)Heap + ((int)head - ((size + lengthof(block)) - 1));
+        block = ((int)head - ((size + lengthof(block)) - 1));
 
         block.used = true;
         block.size = size;
@@ -75,7 +91,7 @@ private int malloc (int size)
 
         if((block.size - size) >= (lengthof(block) + 4))
         {
-            struct AllocBlock* splitBlock = (int)block + size + lengthof(block);
+            struct AllocBlock PTR_SPC* splitBlock = (int)block + size + lengthof(block);
 
             splitBlock.used = false;
             splitBlock.size = block.size - lengthof(block) - size;
@@ -92,7 +108,7 @@ private int malloc (int size)
     } while(block);
 
     // No acceptable blocks found, so let's "grow" the heap.
-    block = (int)Heap + ((int)head.tail - (lengthof(block) + size));
+    block = ((int)head.tail - (lengthof(block) + size));
 
     block.used = true;
     block.size = size;
@@ -100,10 +116,19 @@ private int malloc (int size)
 
     head.tail = block;
 
-    if((int)block < (int)Heap)
+    #ifndef __LIBBCS_NO_LOCAL_HEAP
+    if((int)block < (int)_Heap)
+	#else
+	// This check is a little weird since we start our heap in the negatives.
+	if( ((int)block > HEAP_START) && ((int)block < 0) )
+	#endif
     {
+		#ifndef __LIBBCS_NO_LOCAL_HEAP
 		Log(s:"\cglibbcs malloc ERROR: heap overflow! HEAP_SIZE is currently ", i:HEAP_SIZE);
-		return -1;
+		#else
+		Log(s:"\cglibbcs malloc ERROR: heap overflow!");
+		#endif
+		return 0;
 	}
 
     return (int)block + lengthof(block);
@@ -115,8 +140,8 @@ private void free (int ptr)
     if(!ptr)
         return;
 
-    struct HeapHead* head;
-    struct AllocBlock* block, nextBlock;
+    struct HeapHead PTR_SPC* head;
+    struct AllocBlock PTR_SPC* block, nextBlock;
 
     block = ptr - lengthof(block);
     nextBlock = block.next;
@@ -130,7 +155,7 @@ private void free (int ptr)
 
     block.used = false;
 
-    head = (int)Heap + (HEAP_START - lengthof(head));
+    head = (HEAP_START - lengthof(head));
     head.lastFreed = block;
 }
 
@@ -150,7 +175,7 @@ private int realloc (int oldPtr, int size)
         return 0;
     }
 
-    struct AllocBlock* oldBlock;
+    struct AllocBlock PTR_SPC* oldBlock;
 
     oldBlock = oldPtr - lengthof(oldBlock);
 
@@ -158,15 +183,13 @@ private int realloc (int oldPtr, int size)
         return oldPtr;
 
     int ptr = malloc(size);
+	Log(s:"realloc new ptr is ", i:ptr);
 
-    ptr -= (int)Heap;
-    oldPtr -= (int)Heap;
+    int[] PTR_SPC* oldBuf = oldPtr;
+    int[] PTR_SPC* buf = ptr;
 
     for(int i = oldBlock.size; i > 0; i--)
-        Heap[ptr+i] = Heap[oldPtr+i];
-
-    ptr += (int)Heap;
-    oldPtr += (int)Heap;
+        buf[i] = oldBuf[i];
 
     free(oldPtr);
     return ptr;
@@ -193,16 +216,16 @@ private int alloca (int size)
 // Debug print function.
 void allocDump ()
 {
-    struct HeapHead* head;
-    struct AllocBlock* block;
+    struct HeapHead PTR_SPC* head;
+    struct AllocBlock PTR_SPC* block;
 
-    head = (int)Heap + (HEAP_START - lengthof(head));
+    head = (HEAP_START - lengthof(head));
     block = head.tail;
 
     Print(s:"=libbcs allocDump=");
 	while(block)
 	{
-        Print(i:(int)block - (int)Heap, s:" - next: ", i:(int)block.next - (int)Heap, s:", size: ", x:block.size, s:", used: ", i:(int)block.used & (1<<0), s:", autBlock: ", i:(int)block.used & (1<<2));
+        Print(i:(int)block, s:" - next: ", i:(int)block.next, s:", size: ", x:block.size, s:", used: ", i:(int)block.used & (1<<0), s:", autBlock: ", i:(int)block.used & (1<<2));
 
         block = block.next;
 	}
@@ -212,35 +235,39 @@ void allocDump ()
 // first word is an offset pointing to the first array element
 // second word is an offset pointing to the length of the array
 // inline ASM is of course required to change the length offset
-private void[]* makeArrPtr (int ptr, int len)
+private void[] PTR_SPC* makeArrPtr (int ptr, int len)
 {
-    void[]* arr;
+	void[] PTR_SPC* arr;
 
-    >pushscriptvar 0
-    >assignscriptvar 2 // Write pointer to array.
-    >pushscriptvar 2
-    >pushscriptvar 1
-    >assignmaparray 0 // Write length to first word of allocated space.
-    >pushscriptvar 2
-    >assignscriptvar 3 // Set pointer to length.
-    >incscriptvar 2 // Finally, move the pointer to array start to actually point to the first element.
+	// utterly disgusting
+	struct
+	{
+		raw a;
+	} PTR_SPC* h = ptr;
+	h.a = len;
+
+	>pushscriptvar 0
+	>assignscriptvar 2 // Write pointer to array.
+	>incscriptvar 2 // Increment to point to the first element.
+	>pushscriptvar 0
+	>assignscriptvar 3 // Write pointer to array length.
 
     return arr;
 }
 
-private void[]* arrNew (int len)
+private void[] PTR_SPC* arrNew (int len)
 {
     int ptr = malloc(len + 1);
 
     return makeArrPtr(ptr, len);
 }
 
-private void arrDelete (void[]* arr)
+private void arrDelete (void[] PTR_SPC* arr)
 {
     free((int)arr - 1);
 }
 
-private void[]* arrResize (void[]* arr, int newSize)
+private void[] PTR_SPC* arrResize (void[] PTR_SPC* arr, int newSize)
 {
     int newPtr = realloc((int)arr - 1, newSize + 1);
 
