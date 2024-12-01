@@ -895,12 +895,6 @@ static bool test_ref( struct semantic* semantic, struct ref_test* test ) {
          return false;
       }
 
-      if ( s_deprecation( semantic, DEPRECATION_QUESTIONMARKREF ) && ref->question_mark ) {
-         s_diag( semantic, DIAG_WARN | DIAG_POS, &ref->pos,
-            "nullable references specified by `?` is deprecated, use `*` instead" );
-         s_register_deprecation( semantic, DEPRECATION_QUESTIONMARKREF );
-      }
-
       ref = ref->next;
    }
 
@@ -2474,7 +2468,7 @@ static int calc_size( struct dim* dim, struct structure* structure,
       // data units. The first data unit stores an offset to the first element
       // of the array. The second data unit stores an offset to the dimension
       // information of the array.
-      if ( ref->type == REF_ARRAY ) {
+      if ( ref->type == REF_ARRAY && ! t_is_ptr( ref ) ) {
          return PRIMITIVE_SIZE + PRIMITIVE_SIZE;
       }
       else {

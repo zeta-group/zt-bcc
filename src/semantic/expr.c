@@ -3203,6 +3203,11 @@ static void test_memcpy( struct semantic* semantic, struct expr_test* test,
          "destination not an array or structure" );
       s_bail( semantic );
    }
+   if ( s_is_array_ref( &dst.type ) && t_is_ptr( dst.type.ref ) ) {
+      s_diag( semantic, DIAG_POS_ERR, &call->destination->pos,
+         "destination cannot be a pointer to array" );
+      s_bail( semantic );
+   }
    // It doesn't look pretty if we allow struct variables to be specified with
    // the array format-item, so make sure the argument is an array.
    if ( call->array_cast && ! s_is_array_ref( &dst.type ) ) {

@@ -725,7 +725,7 @@ static void visit_assign( struct codegen* codegen, struct result* result,
    struct result lside;
    init_result( &lside, false );
    visit_operand( codegen, &lside, assign->lside );
-   if ( lside.ref && lside.ref->type == REF_ARRAY ) {
+   if ( lside.ref && lside.ref->type == REF_ARRAY && ! t_is_ptr( lside.ref ) ) {
       assign_array_reference( codegen, assign, &lside, result );
    }
    else if ( assign->spec == SPEC_FIXED ) {
@@ -951,7 +951,7 @@ void c_init_local_var( struct codegen* codegen, struct var* var ) {
    init_result( &rside, true );
    push_operand_result( codegen, &rside, var->value->expr->root );
    // Copy dimension information offset.
-   if ( var->ref && var->ref->type == REF_ARRAY ) {
+   if ( var->ref && var->ref->type == REF_ARRAY && ! t_is_ptr( var->ref ) ) {
       if ( rside.null ) {
          c_pcd( codegen, PCD_PUSHNUMBER, 0 );
       }
@@ -1363,7 +1363,7 @@ static void subscript_array_reference( struct codegen* codegen,
    if ( lside->ref_dim == 0 ) {
       struct ref_array* array = ( struct ref_array* ) lside->ref;
       lside->ref_dim = array->dim_count;
-      if ( array->ref.nullable && ! lside->safe ) {
+      if ( array->ref.nullable && array->ref.question_mark && ! lside->safe ) {
          write_null_check( codegen ); 
       }
    }
@@ -1401,7 +1401,7 @@ static void subscript_array_reference( struct codegen* codegen,
       result->ref = lside->ref->next;
       result->structure = lside->structure;
       if ( result->push ) {
-         if ( result->ref->type == REF_ARRAY ) {
+         if ( result->ref->type == REF_ARRAY && ! t_is_ptr( result->ref ) ) {
             copy_diminfo( codegen, lside );
          }
          push_element( codegen, lside->storage, lside->index );
@@ -1529,11 +1529,11 @@ static void access_structure_member( struct codegen* codegen,
       result->ref = member->ref;
       result->structure = member->structure;
       if ( result->push ) {
-         if ( result->ref->type == REF_ARRAY ) {
+         if ( result->ref->type == REF_ARRAY && ! t_is_ptr( result->ref ) ) {
             copy_diminfo( codegen, lside );
          }
          push_element( codegen, lside->storage, lside->index );
-         result->storage = STORAGE_MAP;
+         result->storage = STORAGE_MAP; // TODO ?
          result->index = codegen->shary.index;
       }
       else {
@@ -1765,12 +1765,12 @@ static void push_arg( struct codegen* codegen, struct param* param,
    if ( arg.dim ) {
       c_pcd( codegen, PCD_PUSHNUMBER, arg.diminfo_start );
    }
-   else if ( arg.ref && arg.ref->type == REF_ARRAY ) {
+   else if ( arg.ref && arg.ref->type == REF_ARRAY && ! t_is_ptr( arg.ref ) ) {
       c_push_dimtrack( codegen );
    }
    else if ( arg.null ) {
       // Dimension information.
-      if ( param->ref && param->ref->type == REF_ARRAY ) {
+      if ( param->ref && param->ref->type == REF_ARRAY && ! t_is_ptr( param->ref ) ) {
          c_pcd( codegen, PCD_PUSHNUMBER, 0 );
       }
    }
@@ -1809,7 +1809,7 @@ static void visit_sample_call( struct codegen* codegen, struct result* result,
    visit_suffix( codegen, &operand, call->operand );
    // Null check.
    if ( codegen->task->library_main->header && operand.ref->nullable &&
-      ! operand.safe ) {
+      operand.ref->question_mark && ! operand.safe ) {
       write_null_check( codegen );
    }
    // Push arguments.
@@ -2338,7 +2338,7 @@ static void visit_shary_ref_var( struct codegen* codegen,
    struct result* result, struct var* var ) {
    c_pcd( codegen, PCD_PUSHNUMBER, var->index );
    if ( result->push ) {
-      if ( var->ref->type == REF_ARRAY ) {
+      if ( var->ref->type == REF_ARRAY && ! t_is_ptr( var->ref ) ) {
          c_pcd( codegen, PCD_PUSHNUMBER, var->index + 1 );
          push_element( codegen, STORAGE_MAP, codegen->shary.index );
          c_update_dimtrack( codegen );
@@ -2357,7 +2357,7 @@ static void visit_ref_var( struct codegen* codegen, struct result* result,
    struct var* var ) {
    if ( result->push ) {
       // A map variable holds array-reference information in an array.
-      if ( var->storage == STORAGE_MAP && var->ref->type == REF_ARRAY ) {
+      if ( var->storage == STORAGE_MAP && var->ref->type == REF_ARRAY && ! t_is_ptr( var->ref ) ) {
          c_pcd( codegen, PCD_PUSHNUMBER, 0 );
          c_pcd( codegen, PCD_PUSHNUMBER, 1 );
          c_push_element( codegen, var->storage, var->index );
@@ -2366,7 +2366,7 @@ static void visit_ref_var( struct codegen* codegen, struct result* result,
       }
       else {
          push_indexed( codegen, var->storage, var->index );
-         if ( var->ref->type == REF_ARRAY ) {
+         if ( var->ref->type == REF_ARRAY && ! t_is_ptr( var->ref ) ) {
             push_indexed( codegen, var->storage, var->index + 1 );
             c_update_dimtrack( codegen );
          }
@@ -2381,7 +2381,7 @@ static void visit_ref_var( struct codegen* codegen, struct result* result,
       result->storage = var->storage;
       result->index = var->index;
       // A map variable holds array-reference information in an array.
-      if ( var->storage == STORAGE_MAP && var->ref->type == REF_ARRAY ) {
+      if ( var->storage == STORAGE_MAP && var->ref->type == REF_ARRAY && ! t_is_ptr( var->ref ) ) {
          c_pcd( codegen, PCD_PUSHNUMBER, 0 );
          result->status = R_ARRAYINDEX;
       }
@@ -2399,7 +2399,7 @@ static void visit_param( struct codegen* codegen, struct result* result,
       result->structure = param->structure;
       if ( result->push ) {
          push_indexed( codegen, STORAGE_LOCAL, param->index );
-         if ( param->ref->type == REF_ARRAY ) {
+         if ( param->ref->type == REF_ARRAY && ! t_is_ptr( param->ref ) ) {
             push_indexed( codegen, STORAGE_LOCAL, param->index + 1 );
             c_update_dimtrack( codegen );
          }
@@ -2529,7 +2529,7 @@ static void copy_array( struct codegen* codegen, struct result* result,
    visit_operand( codegen, &destination, call->destination->root );
    // Null check.
    if ( destination.ref && destination.ref->type == REF_ARRAY &&
-      destination.ref->nullable && ! destination.safe ) {
+      destination.ref->nullable && destination.ref->question_mark && ! destination.safe ) {
       write_null_check( codegen );
    }
    if ( destination.status == R_ARRAYINDEX || call->destination_offset ) {
@@ -2606,7 +2606,7 @@ static void copy_array( struct codegen* codegen, struct result* result,
    visit_operand( codegen, &source, call->source->root );
    // Null check.
    if ( source.ref && source.ref->type == REF_ARRAY && source.ref->nullable &&
-      ! source.safe ) {
+      source.ref->question_mark && ! source.safe ) {
       write_null_check( codegen );
    }
    if ( source.status == R_ARRAYINDEX || call->source_offset ) {
@@ -2807,7 +2807,10 @@ static void push_array_size( struct codegen* codegen, struct result* result ) {
       c_pcd( codegen, PCD_PUSHNUMBER, t_dim_size( result->dim ) );
    }
    else if ( result->ref && result->ref->type == REF_ARRAY ) {
-      push_diminfo( codegen );
+      if( ! t_is_ptr( result->ref ) )
+         push_diminfo( codegen );
+      else
+         c_pcd( codegen, PCD_PUSHNUMBER, 0 );
    }
    else {
       UNREACHABLE();
@@ -2820,7 +2823,10 @@ static void push_array_length( struct codegen* codegen, struct result* result,
       c_pcd( codegen, PCD_PUSHNUMBER, result->dim->length );
    }
    else if ( result->ref && result->ref->type == REF_ARRAY ) {
-      push_ref_array_length( codegen, result, dim_info_pushed );
+      if( ! t_is_ptr( result->ref ) )
+         push_ref_array_length( codegen, result, dim_info_pushed );
+      else
+         c_pcd( codegen, PCD_PUSHNUMBER, 0 ); // TODO: fix?
    }
    else {
       UNREACHABLE();
@@ -2962,7 +2968,7 @@ static void visit_lengthof( struct codegen* codegen, struct result* result,
       push_operand_result( codegen, &operand, call->operand->root );
       // Null check.
       if ( operand.ref && operand.ref->type == REF_ARRAY &&
-         operand.ref->nullable && ! operand.safe ) {
+         operand.ref->nullable && operand.ref->question_mark && ! operand.safe ) {
          write_null_check( codegen );
       }
       // Drop the array address because we do not need it for this operation.

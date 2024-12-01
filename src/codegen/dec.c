@@ -29,7 +29,7 @@ static bool is_zero_local_value( struct codegen* codegen,
 static bool is_nonzero_local_value( struct codegen* codegen,
    struct value* value );
 static int get_local_value_size( struct codegen* codegen,
-   struct value* value );
+   struct var* var );
 static void write_local_value( struct codegen* codegen, struct var* var,
    struct value* value, int zeroed_segment_start, int zeroed_segment_end );
 static void write_string_initz( struct codegen* codegen, struct var* var,
@@ -253,7 +253,7 @@ static void visit_local_var( struct codegen* codegen, struct var* var ) {
    case DESC_PRIMITIVEVAR:
       if ( var->force_local_scope ) {
          var->index = c_alloc_script_var( codegen );
-         if ( var->ref && var->ref->type == REF_ARRAY ) {
+         if ( var->ref && var->ref->type == REF_ARRAY && ! t_is_ptr( var->ref ) ) {
             c_alloc_script_var( codegen );
          }
       }
@@ -294,7 +294,7 @@ static void write_multi_initz( struct codegen* codegen, struct var* var ) {
    while ( value ) {
       int value_end = value->index;
       if ( is_nonzero_local_value( codegen, value ) ) {
-         value_end += get_local_value_size( codegen, value );
+         value_end += get_local_value_size( codegen, var );
       }
       int next_value_start = 0;
       if ( value->next ) {
@@ -364,8 +364,8 @@ static bool is_nonzero_local_value( struct codegen* codegen,
 }
 
 static int get_local_value_size( struct codegen* codegen,
-   struct value* value ) {
-   switch ( value->type ) {
+   struct var* var ) {
+   switch ( var->value->type ) {
    case VALUE_EXPR:
    case VALUE_STRING:
    case VALUE_STRUCTREF:
@@ -373,10 +373,12 @@ static int get_local_value_size( struct codegen* codegen,
       return 1;
    case VALUE_STRINGINITZ:
       // NOTE: Plus one for the NUL character.
-      return value->more.stringinitz.string->length + 1;
+      return var->value->more.stringinitz.string->length + 1;
    case VALUE_ARRAYREF:
-      // Offset to the array and offset to the dimension information.
-      return 2;
+   if( ! t_is_ptr( var->ref ) )
+      return 2; // Offset to the array and offset to the dimension information.
+   else
+      return 1;
    default:
       UNREACHABLE();
       c_bail( codegen );
@@ -406,12 +408,21 @@ static void write_local_value( struct codegen* codegen, struct var* var,
       }
       break;
    case VALUE_ARRAYREF:
-      c_pcd( codegen, PCD_PUSHNUMBER, value->index );
-      c_push_expr( codegen, value->expr );
-      c_update_element( codegen, var->storage, var->index, AOP_NONE );
-      c_pcd( codegen, PCD_PUSHNUMBER, value->index + 1 );
-      c_push_dimtrack( codegen );
-      c_update_element( codegen, var->storage, var->index, AOP_NONE );
+      if( ! t_is_ptr( var->ref ) )
+      {
+         c_pcd( codegen, PCD_PUSHNUMBER, value->index );
+         c_push_expr( codegen, value->expr );
+         c_update_element( codegen, var->storage, var->index, AOP_NONE );
+         c_pcd( codegen, PCD_PUSHNUMBER, value->index + 1 );
+         c_push_dimtrack( codegen );
+         c_update_element( codegen, var->storage, var->index, AOP_NONE );
+      }
+      else
+      {
+         c_pcd( codegen, PCD_PUSHNUMBER, value->index );
+         c_push_expr( codegen, value->expr );
+         c_update_element( codegen, var->storage, var->index, AOP_NONE );
+      }
       break;
    default:
       UNREACHABLE();

@@ -1236,3 +1236,8 @@ static bool is_object_in_fragment( struct ns_fragment* fragment,
    }
    return false;
 }
+
+// Fits semantic best, but this is used by semantic and codegen phases.
+bool t_is_ptr( struct ref* ref ) {
+      return ( ref->nullable && ! ref->question_mark );
+}

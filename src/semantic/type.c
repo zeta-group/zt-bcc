@@ -210,6 +210,7 @@ static bool same_ref( struct ref* a, struct ref* b ) {
             ( struct ref_struct* ) b );
          break;
       }
+
       if ( ! same ) {
          return false;
       }
@@ -224,7 +225,8 @@ static bool same_ref_struct( struct ref_struct* a, struct ref_struct* b ) {
 }
 
 static bool same_ref_array( struct ref_array* a, struct ref_array* b ) {
-   return ( (a->dim_count == b->dim_count) && (a->storage == b->storage) && (a->storage_index == b->storage_index) );
+   return ( (a->dim_count == b->dim_count) && (a->storage == b->storage) && (a->storage_index == b->storage_index) &&
+   (a->ref.nullable == b->ref.nullable) && (a->ref.question_mark == b->ref.question_mark) );
 }
 
 static bool same_ref_func( struct ref_func* a, struct ref_func* b ) {
@@ -341,11 +343,12 @@ bool s_instance_of( struct type_info* type, struct type_info* instance ) {
          int instypedesc = s_describe_type( instance );
          int eitherint = ((instypedesc == TYPEDESC_ARRAYREF) || (instypedesc == TYPEDESC_STRUCTREF));
          eitherint ^= ((typedesc == TYPEDESC_ARRAYREF) || (typedesc == TYPEDESC_STRUCTREF));
+         int onlyoneptr = ((type->ref) ? t_is_ptr( type->ref ) : 0) ^ ((instance->ref) ? t_is_ptr( instance->ref ) : 0);
 
-         if(eitherint)
+         if( eitherint )
             valid = true;
          else
-            valid = s_same_type( type, instance ) || ( ((type->spec == SPEC_VOID) || (instance->spec == SPEC_VOID)) && (typedesc != TYPEDESC_FUNCREF) );
+            valid = s_same_type( type, instance ) || ( ((type->spec == SPEC_VOID) || (instance->spec == SPEC_VOID)) && (typedesc != TYPEDESC_FUNCREF) && ! onlyoneptr );
       }
       break;
    case TYPEDESC_ENUM:
@@ -449,7 +452,10 @@ static void present_ref( struct ref* ref, struct str* string ) {
          default: break;
          }
          if ( ref->nullable ) {
-            str_append( string, "*" );
+            if( ref->question_mark )
+               str_append( string, "?" );
+            else
+               str_append( string, "*" );
          }
          else {
             str_append( string, "&" );
@@ -464,7 +470,10 @@ static void present_ref( struct ref* ref, struct str* string ) {
          default: break;
          }
          if ( ref->nullable ) {
-            str_append( string, "?" );
+            if( ref->question_mark )
+               str_append( string, "?" );
+            else
+               str_append( string, "*" );
          }
          else {
             str_append( string, "&" );
@@ -481,7 +490,10 @@ static void present_ref( struct ref* ref, struct str* string ) {
             str_append( string, " local" );
          }
          if ( ref->nullable ) {
-            str_append( string, "*" );
+            if( ref->question_mark )
+               str_append( string, "?" );
+            else
+               str_append( string, "*" );
          }
          else {
             str_append( string, "&" );
@@ -544,7 +556,7 @@ void s_iterate_type( struct semantic* semantic, struct type_info* type,
       s_init_type_info_scalar( &iter->value, s_spec( semantic, SPEC_INT ) );
       iter->available = true;
    }
-   else if ( s_is_array_ref( type ) ) {
+   else if ( s_is_array_ref( type ) && ! t_is_ptr( type->ref ) ) {
       s_init_type_info_scalar( &iter->key, s_spec( semantic, SPEC_INT ) );
       s_subscript_array_ref( semantic, type, &iter->value );
       iter->available = true;
