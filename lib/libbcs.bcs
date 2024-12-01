@@ -235,9 +235,9 @@ void allocDump ()
 // first word is an offset pointing to the first array element
 // second word is an offset pointing to the length of the array
 // inline ASM is of course required to change the length offset
-private void[] PTR_SPC* makeArrPtr (int ptr, int len)
+private void[] PTR_SPC? makeArrPtr (int ptr, int len)
 {
-	void[] PTR_SPC* arr;
+	void[] PTR_SPC? arr;
 
 	// utterly disgusting
 	struct
@@ -255,19 +255,19 @@ private void[] PTR_SPC* makeArrPtr (int ptr, int len)
     return arr;
 }
 
-private void[] PTR_SPC* arrNew (int len)
+private void[] PTR_SPC? arrNew (int len)
 {
     int ptr = malloc(len + 1);
 
     return makeArrPtr(ptr, len);
 }
 
-private void arrDelete (void[] PTR_SPC* arr)
+private void arrDelete (void[] PTR_SPC? arr)
 {
     free((int)arr - 1);
 }
 
-private void[] PTR_SPC* arrResize (void[] PTR_SPC* arr, int newSize)
+private void[] PTR_SPC? arrResize (void[] PTR_SPC? arr, int newSize)
 {
     int newPtr = realloc((int)arr - 1, newSize + 1);
 
