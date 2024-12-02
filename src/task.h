@@ -198,6 +198,7 @@ struct enumeration {
    bool semicolon;
    bool force_local_scope;
    bool default_initz;
+   bool used_private;
 };
 
 struct enumerator {
@@ -225,6 +226,7 @@ struct structure {
    bool semicolon;
    bool force_local_scope;
    bool hidden;
+   bool used_private;
 };
 
 struct structure_member {
@@ -296,6 +298,7 @@ struct type_alias {
    bool head_instance;
    bool force_local_scope;
    bool hidden;
+   bool used_private;
 };
 
 struct paren {
@@ -796,6 +799,7 @@ struct var {
    bool external;
    bool head_instance;
    bool anon;
+   bool used_private;
 };
 
 struct param {
@@ -844,6 +848,7 @@ struct func {
    bool external;
    bool force_local_scope;
    bool literal;
+   bool used_private;
 };
 
 struct func_aspec {

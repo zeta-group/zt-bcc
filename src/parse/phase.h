@@ -179,6 +179,7 @@ enum tk {
    TK_AT,
    TK_COLONCOLON,
    TK_LENGTHOF,
+   TK_INTERNAL,
 
    TK_TOTAL,
 
@@ -358,6 +359,7 @@ struct dec {
    bool external;
    bool force_local_scope;
    bool anon;
+   bool used_private;
 };
 
 struct stmt_reading {

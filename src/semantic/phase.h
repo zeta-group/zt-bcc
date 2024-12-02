@@ -128,6 +128,9 @@ enum deprecation {
    // Description: using the Length() function of strings. Recommend using
    // StrLen() instead.
    DEPRECATION_ASSOCFUNCLENGTHSTR,
+   // Description: using the `private` keyword for visibility. Recommend using
+   // `internal` instead.
+   DEPRECATION_PRIVATEKEYW,
    DEPRECATION_TOTAL
 };
 

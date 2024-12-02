@@ -153,7 +153,7 @@ static void init_namespace_qualifier( struct ns_qual* qualifiers ) {
 
 static void read_namespace_qualifier( struct parse* parse,
    struct ns_qual* qualifiers ) {
-   if ( parse->tk == TK_PRIVATE ) {
+   if ( parse->tk == TK_PRIVATE || parse->tk == TK_INTERNAL ) {
       qualifiers->private_visibility = true;
       p_read_tk( parse );
    }
@@ -294,6 +294,7 @@ static bool is_namespace( struct parse* parse ) {
          break;
       }
       break;
+   case TK_INTERNAL:
    case TK_PRIVATE:
       switch ( p_peek( parse ) ) {
       case TK_STRICT:

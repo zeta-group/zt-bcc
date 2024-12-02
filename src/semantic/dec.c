@@ -264,6 +264,8 @@ static void init_builtin_script_aliases( struct semantic* semantic,
    struct builtin_script_aliases* aliases, struct script* script );
 static void bind_builtin_script_aliases( struct semantic* semantic,
    struct builtin_script_aliases* aliases );
+static void show_private_depr_warning (struct semantic* semantic,
+   struct pos* pos);
 
 void s_test_constant( struct semantic* semantic, struct constant* constant ) {
    struct expr_test expr;
@@ -295,6 +297,9 @@ void s_test_enumeration( struct semantic* semantic,
          s_bind_local_name( semantic, enumeration->name, &enumeration->object,
             enumeration->force_local_scope );
       }
+   }
+   if ( s_deprecation( semantic, DEPRECATION_PRIVATEKEYW ) && enumeration->used_private ) {
+      show_private_depr_warning( semantic, &enumeration->object.pos );
    }
    struct enumeration_test test = { -1 };
    // Skip previously resolved enumerators.
@@ -380,6 +385,9 @@ void s_test_struct( struct semantic* semantic, struct structure* structure ) {
 
 static bool test_struct_name( struct semantic* semantic,
    struct structure* structure ) {
+   if ( s_deprecation( semantic, DEPRECATION_PRIVATEKEYW ) && structure->used_private ) {
+      show_private_depr_warning( semantic, &structure->object.pos );
+   }
    if ( semantic->in_localscope ) {
       s_bind_local_name( semantic, structure->name, &structure->object,
          structure->force_local_scope );
@@ -519,6 +527,9 @@ static bool test_typedef_spec( struct semantic* semantic,
          "type alias of an array of void elements" );
       s_bail( semantic );
    }
+   if ( s_deprecation( semantic, DEPRECATION_PRIVATEKEYW ) && alias->used_private ) {
+      show_private_depr_warning( semantic, &alias->object.pos );
+   }
    // Public type alias must have a public type.
    if ( ! semantic->in_localscope && ! alias->hidden && ! test.public_spec ) {
       s_diag( semantic, DIAG_POS_ERR, &alias->object.pos,
@@ -597,6 +608,9 @@ static bool test_var_spec( struct semantic* semantic, struct var* var ) {
       s_diag( semantic, DIAG_POS_ERR, &var->object.pos, var->dim ?
          "array has void element type" : "variable has void type" );
       s_bail( semantic );
+   }
+   if ( s_deprecation( semantic, DEPRECATION_PRIVATEKEYW ) && var->used_private ) {
+      show_private_depr_warning( semantic, &var->object.pos );
    }
    // Public (visible to a user of a library) variable must have a public type.
    if ( ! semantic->in_localscope && ! var->hidden && ! test.public_spec ) {
@@ -1932,6 +1946,9 @@ static bool test_func_return_spec( struct semantic* semantic,
          "a struct can only be returned by reference" );
       s_bail( semantic );
    }
+   if ( s_deprecation( semantic, DEPRECATION_PRIVATEKEYW ) && func->used_private ) {
+      show_private_depr_warning( semantic, &func->object.pos );
+   }
    // Public function must have a public return type.
    if ( ! semantic->in_localscope && ! func->hidden && ! test.public_spec ) {
       s_diag( semantic, DIAG_POS_ERR, &func->object.pos,
@@ -2618,4 +2635,11 @@ static void alloc_value_index_struct( struct value_index_alloc* alloc,
       member = member->next;
       initial = initial->next;
    }
+}
+
+static void show_private_depr_warning (struct semantic* semantic, struct pos* pos)
+{
+   s_diag( semantic, DIAG_WARN | DIAG_POS, pos,
+      "`private` keyword for hidden visibility is deprecated, use `internal` instead" );
+   s_register_deprecation( semantic, DEPRECATION_PRIVATEKEYW );
 }

@@ -200,6 +200,7 @@ bool p_is_dec( struct parse* parse ) {
       case TK_AUTO:
       case TK_TYPEDEF:
       case TK_PRIVATE:
+      case TK_INTERNAL:
       case TK_EXTERN:
       case TK_TYPENAME:
          return true;
@@ -243,6 +244,7 @@ void p_init_dec( struct dec* dec ) {
    dec->external = false;
    dec->force_local_scope = false;
    dec->anon = false;
+   dec->used_private = false;
 }
 
 void p_init_for_dec( struct parse* parse, struct dec* dec,
@@ -289,7 +291,8 @@ bool p_read_let( struct parse* parse ) {
 
 static void read_dec( struct parse* parse, struct dec* dec ) {
    dec->pos = parse->tk_pos;
-   if ( parse->tk == TK_PRIVATE ) {
+   if ( parse->tk == TK_INTERNAL || parse->tk == TK_PRIVATE ) {
+      dec->used_private = ( parse->tk == TK_PRIVATE );
       dec->private_visibility = true;
       p_read_tk( parse );
    }
@@ -348,6 +351,7 @@ static void read_enum_def( struct parse* parse, struct dec* dec ) {
    enumeration->object.pos = dec->type_pos;
    enumeration->hidden = dec->private_visibility;
    enumeration->force_local_scope = dec->force_local_scope;
+   enumeration->used_private = dec->used_private;
    read_enum_name( parse, dec, enumeration );
    read_enum_base_type( parse, enumeration );
    read_enum_body( parse, dec, enumeration );
@@ -512,6 +516,7 @@ static void read_struct_def( struct parse* parse, struct dec* dec ) {
    structure->object.pos = parse->tk_pos;
    structure->force_local_scope = dec->force_local_scope;
    structure->hidden = dec->private_visibility;
+   structure->used_private = dec->used_private;
    p_test_tk( parse, TK_STRUCT );
    p_read_tk( parse );
    read_struct_name( parse, dec, structure );
@@ -1535,6 +1540,7 @@ static struct var* alloc_var( struct dec* dec ) {
    var->storage = dec->storage.type;
    var->index = dec->storage_index.value;
    var->hidden = dec->private_visibility;
+   var->used_private = dec->used_private;
    var->is_constant_init =
       ( dec->static_qual || dec->area == DEC_TOP ) ? true : false;
    var->force_local_scope = dec->force_local_scope;
@@ -1557,6 +1563,7 @@ static void finish_type_alias( struct parse* parse, struct dec* dec ) {
    alias->original_spec = dec->spec;
    alias->force_local_scope = dec->force_local_scope;
    alias->hidden = dec->private_visibility;
+   alias->used_private = dec->used_private;
    if ( dec->area == DEC_TOP ) {
       p_add_unresolved( parse, &alias->object );
       list_append( &parse->ns_fragment->objects, alias );
@@ -1934,6 +1941,7 @@ static struct func* alloc_func( struct parse* parse, struct dec* dec ) {
    func->return_spec = dec->spec;
    func->original_return_spec = dec->spec;
    func->hidden = dec->private_visibility;
+   func->used_private = dec->used_private;
    func->imported = parse->lib->imported;
    func->external = dec->external;
    func->force_local_scope = dec->force_local_scope;
