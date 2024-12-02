@@ -16,27 +16,27 @@ strict namespace bcs {
 special -44:__libbcs_CallACS(str;raw,raw,raw,raw):int;
 
 #ifndef __LIBBCS_NO_LOCAL_HEAP
-private raw _Heap[HEAP_SIZE];
+internal raw _Heap[HEAP_SIZE];
 
-private enum
+internal enum
 {
     HEAP_START = (HEAP_SIZE - 1) + (int)_Heap // Don't touch this.
 };
 #else
-private enum
+internal enum
 {
 	HEAP_START = 0xFFFEFFFF
 };
 #endif
 
-private struct AllocBlock
+internal struct AllocBlock
 {
     struct AllocBlock PTR_SPC* next;
     int size;
     bool used;
 };
 
-private struct HeapHead
+internal struct HeapHead
 {
     bool init;
 #ifdef __LIBBCS_NO_LOCAL_HEAP
@@ -46,7 +46,7 @@ private struct HeapHead
 };
 
 // Main memory allocation function. Returns a pointer to a buffer of the requested size.
-private int malloc (int size)
+internal int malloc (int size)
 {
     struct HeapHead PTR_SPC* head;
     struct AllocBlock PTR_SPC* block;
@@ -135,7 +135,7 @@ private int malloc (int size)
 }
 
 // Frees the memory so it is usable by future calls to smMalloc.
-private void free (int ptr)
+internal void free (int ptr)
 {
     if(!ptr)
         return;
@@ -160,7 +160,7 @@ private void free (int ptr)
 }
 
 // Creates a new bigger buffer if needed, copying the contents of the original passed in.
-private int realloc (int oldPtr, int size)
+internal int realloc (int oldPtr, int size)
 {
     if(!oldPtr)
     {
@@ -204,7 +204,7 @@ Script _LIBBCS_REV "-alloca" (int ptr)
 	}
 }
 
-private int alloca (int size)
+internal int alloca (int size)
 {
 	int ptr = malloc(size);
 
@@ -235,7 +235,7 @@ void allocDump ()
 // first word is an offset pointing to the first array element
 // second word is an offset pointing to the length of the array
 // inline ASM is of course required to change the length offset
-private void[] PTR_SPC? makeArrPtr (int ptr, int len)
+internal void[] PTR_SPC? makeArrPtr (int ptr, int len)
 {
 	void[] PTR_SPC? arr;
 
@@ -255,19 +255,19 @@ private void[] PTR_SPC? makeArrPtr (int ptr, int len)
     return arr;
 }
 
-private void[] PTR_SPC? arrNew (int len)
+internal void[] PTR_SPC? arrNew (int len)
 {
     int ptr = malloc(len + 1);
 
     return makeArrPtr(ptr, len);
 }
 
-private void arrDelete (void[] PTR_SPC? arr)
+internal void arrDelete (void[] PTR_SPC? arr)
 {
     free((int)arr - 1);
 }
 
-private void[] PTR_SPC? arrResize (void[] PTR_SPC? arr, int newSize)
+internal void[] PTR_SPC? arrResize (void[] PTR_SPC? arr, int newSize)
 {
     int newPtr = realloc((int)arr - 1, newSize + 1);
 
@@ -292,7 +292,7 @@ private void[] PTR_SPC? arrResize (void[] PTR_SPC? arr, int newSize)
 
 #ifdef BCSFMT_ACCURATE_FIXED
 
-private void PrintFixedPrec (fixed n)
+internal void PrintFixedPrec (fixed n)
 {
 	str string;
 	int integerPart = int(n);
@@ -326,19 +326,19 @@ private void PrintFixedPrec (fixed n)
 #endif
 #endif
 
-private void __putc (int c)
+internal void __putc (int c)
 {
 	>pushscriptvar 0
 	>printcharacter
 }
 
-private void PrintInt (raw i)
+internal void PrintInt (raw i)
 {
 	>pushscriptvar 0
 	>printnumber
 }
 
-private void PrintFixed (raw i)
+internal void PrintFixed (raw i)
 {
 	>pushscriptvar 0
 	>PrintFixed
@@ -349,7 +349,7 @@ private void PrintFixed (raw i)
 	#define PUSH_PARAMNUM >pushscriptvar 17
 #endif
 
-private void __printf (__printf_parms)
+internal void __printf (__printf_parms)
 {
 	raw params[] = {i1, i2, i3, i4, i5, i6, i7, i8, i9, i10, i11, i12, i13, i14, i15, i16};
 
