@@ -51,8 +51,6 @@ internal int malloc (int size)
     struct HeapHead PTR_SPC* head;
     struct AllocBlock PTR_SPC* block;
 
-	//raw[]* unused = Heap;
-
     head = (HEAP_START - lengthof(head));
 
     if(!head.init)
