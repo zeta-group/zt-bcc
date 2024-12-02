@@ -932,6 +932,11 @@ static bool test_ref_array( struct semantic* semantic, struct ref_test* test,
          "non-nullable array reference has void element type" );
       s_bail( semantic );
    }
+   if( array->dim_count > 1 && t_is_ptr( &array->ref ) ) {
+      s_diag( semantic, DIAG_POS_ERR, &array->ref.pos,
+         "pointers to arrays can't have more than one dimension" );
+      s_bail( semantic );
+   }
    return true;
 }
 
