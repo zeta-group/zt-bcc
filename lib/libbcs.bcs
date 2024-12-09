@@ -10,7 +10,11 @@ strict namespace bcs {
 #define __LIBBCS_NO_LOCAL_HEAP
 #endif
 
-#define _LIBBCS_REV "0100-alpha-2"
+#ifndef LIBBCS_ARR_EXTRA
+#define LIBBCS_ARR_EXTRA 1
+#endif
+
+#define _LIBBCS_REV "libbcs0100-alpha-3"
 #endif
 
 special -44:__libbcs_CallACS(str;raw,raw,raw,raw):int;
@@ -132,7 +136,7 @@ internal int malloc (int size)
     return (int)block + lengthof(block);
 }
 
-// Frees the memory so it is usable by future calls to smMalloc.
+// Frees the memory so it is usable by future calls to malloc.
 internal void free (int ptr)
 {
     if(!ptr)
@@ -157,15 +161,31 @@ internal void free (int ptr)
     head.lastFreed = block;
 }
 
+internal void memmove (int dstIn, int srcIn, int size)
+{
+	int[] PTR_SPC* dst = dstIn;
+	int[] PTR_SPC* src = srcIn;
+
+	if(size < 1)
+		return;
+
+	if(dstIn < srcIn)
+	{
+		for(int i = 0; i < size; i++)
+			dst[i] = src[i];
+	}
+	else if(dstIn > srcIn)
+	{
+		for(int i = size - 1; i --> 0;)
+			dst[i] = src[i];
+	}
+}
+
 // Creates a new bigger buffer if needed, copying the contents of the original passed in.
 internal int realloc (int oldPtr, int size)
 {
     if(!oldPtr)
-    {
-        if(!size)
-            return 0;
         return malloc(size);
-    }
 
     if(!size)
     {
@@ -183,11 +203,7 @@ internal int realloc (int oldPtr, int size)
     int ptr = malloc(size);
 	Log(s:"realloc new ptr is ", i:ptr);
 
-    int[] PTR_SPC* oldBuf = oldPtr;
-    int[] PTR_SPC* buf = ptr;
-
-    for(int i = oldBlock.size; i > 0; i--)
-        buf[i] = oldBuf[i];
+	memmove(ptr, oldPtr, oldBlock.size);
 
     free(oldPtr);
     return ptr;
@@ -240,7 +256,7 @@ internal void[] PTR_SPC? makeArrPtr (int ptr, int len)
 	// utterly disgusting
 	struct
 	{
-		raw a;
+		int a;
 	} PTR_SPC* h = ptr;
 	h.a = len;
 
@@ -253,9 +269,21 @@ internal void[] PTR_SPC? makeArrPtr (int ptr, int len)
     return arr;
 }
 
-internal void[] PTR_SPC? arrNew (int len)
+internal void printArrPtr (void[] PTR_SPC? arr)
 {
-    int ptr = malloc(len + 1);
+	buildmsg(Log())
+	{
+		>pushscriptvar 0
+		>printnumber
+		Append(s:", ");
+		>pushscriptvar 1
+		>printnumber
+	}
+}
+
+internal void[] PTR_SPC? arrNew (int len, int elementSize = 1)
+{
+    int ptr = malloc((len + 1 + LIBBCS_ARR_EXTRA) * elementSize);
 
     return makeArrPtr(ptr, len);
 }
@@ -265,9 +293,15 @@ internal void arrDelete (void[] PTR_SPC? arr)
     free((int)arr - 1);
 }
 
-internal void[] PTR_SPC? arrResize (void[] PTR_SPC? arr, int newSize)
+internal void[] PTR_SPC? arrResize (void[] PTR_SPC? arr, int newSize, int elementSize = 1)
 {
-    int newPtr = realloc((int)arr - 1, newSize + 1);
+	struct AllocBlock* arrBlock;
+	arrBlock = (int)arr - lengthof(arrBlock);
+
+	if(arrBlock.size >= newSize)
+		return makeArrPtr((int)arr - 1, newSize * elementSize);
+
+    int newPtr = realloc((int)arr - 1, (newSize + 1 + LIBBCS_ARR_EXTRA) * elementSize);
 
     if(!newPtr)
     {
@@ -275,7 +309,7 @@ internal void[] PTR_SPC? arrResize (void[] PTR_SPC? arr, int newSize)
         return arr;
     }
 
-    return makeArrPtr(newPtr, newSize);
+    return makeArrPtr(newPtr, newSize * elementSize);
 }
 
 #if 1
@@ -480,4 +514,204 @@ str strformat (__printf_parms)
 #undef __printf_parms
 #undef __printf_args
 
+Script _LIBBCS_REV "-bsearch" (int a_In, int right, int key)
+{
+	int left = 0;
+	while (left <= right)
+	{
+		int[] PTR_SPC* arr = a_In;
+
+		int mid = left + (right - left) / 2;
+
+		// Check if key is present at mid
+		if (arr[mid] == key)
+		{
+			SetResultValue(mid);
+			terminate;
+		}
+
+		// If key greater than arr[mid], ignore left half
+		if (arr[mid] < key)
+			left = mid + 1;
+
+		// If key is smaller than or equal to arr[mid],
+		// ignore right half
+		else
+			right = mid - 1;
+	}
+
+	// If we reach here, then element was not present
+	SetResultValue(-1);
+
+	/*if(!n)
+	{
+		SetResultValue(-1);
+		terminate;
+	}
+
+	int[] PTR_SPC* a = a_In;
+	int mid = n / 2;
+
+	if(a[mid] < target)
+	{
+		SetResultValue(__libbcs_CallACS(_LIBBCS_REV "-bsearch", a_In + mid + 1, n - mid - 1, target));
+		terminate;
+	}
+	else if(target < a[mid])
+	{
+		SetResultValue(__libbcs_CallACS(_LIBBCS_REV "-bsearch", a_In, mid, target));
+		terminate;
+	}
+
+	SetResultValue(mid);*/
 }
+
+#define LIBBCS_T_MAP_DECL_NEW(name, keyType, valType) struct name PTR_SPC* name##_New ()
+#define LIBBCS_T_MAP_DECL_DELETE(name, keyType, valType) void name##_Delete(struct name PTR_SPC* ptr)
+#define LIBBCS_T_MAP_DECL_GET(name, keyType, valType) valType name##_Get (struct name PTR_SPC* ptr, keyType key)
+#define LIBBCS_T_MAP_DECL_PUT(name, keyType, valType) void name##_Put (struct name PTR_SPC* ptr, keyType key, valType val)
+#define LIBBCS_T_MAP_DECL_REMOVE(name, keyType, valType) void name##_Remove (struct name PTR_SPC* ptr, keyType key)
+#define LIBBCS_T_MAP_DECL_CHECK(name, keyType, valType) bool name##_Check (struct name PTR_SPC* ptr, keyType key)
+#define LIBBCS_T_MAP_DECL_ITERATOR_NEW(name, keyType, valType) struct name##Iterator PTR_SPC* name##Iterator_New (struct name PTR_SPC* map)
+#define LIBBCS_T_MAP_DECL_ITERATOR_DELETE(name, keyType, valType) void name##Iterator_Delete (struct name##Iterator PTR_SPC* ptr)
+#define LIBBCS_T_MAP_DECL_ITERATOR_NEXT(name, keyType, valType) bool name##Iterator_Next (struct name##Iterator PTR_SPC* ptr)
+#define LIBBCS_T_MAP_DECL_ITERATOR_GETKEY(name, keyType, valType) keyType name##Iterator_GetKey (struct name##Iterator PTR_SPC* ptr)
+#define LIBBCS_T_MAP_DECL_ITERATOR_GETVAL(name, keyType, valType) valType name##Iterator_GetVal (struct name##Iterator PTR_SPC* ptr)
+
+#define LIBBCS_T_MAP_DECL(name, keyType, valType) \
+	struct name \
+	{ \
+		keyType[] PTR_SPC? keys; \
+		valType[] PTR_SPC? vals; \
+	}; \
+	typedef struct name PTR_SPC? name##T; \
+	struct name##Iterator \
+	{ \
+		name##T map; \
+		int currKey; \
+	}; \
+	typedef struct name##Iterator PTR_SPC? name##IteratorT; \
+	extern LIBBCS_T_MAP_DECL_NEW(name, keyType, valType); \
+	extern LIBBCS_T_MAP_DECL_DELETE(name, keyType, valType); \
+	extern LIBBCS_T_MAP_DECL_GET(name, keyType, valType); \
+	extern LIBBCS_T_MAP_DECL_PUT(name, keyType, valType); \
+	extern LIBBCS_T_MAP_DECL_REMOVE(name, keyType, valType); \
+	extern LIBBCS_T_MAP_DECL_CHECK(name, keyType, valType); \
+	extern LIBBCS_T_MAP_DECL_ITERATOR_NEW(name, keyType, valType); \
+	extern LIBBCS_T_MAP_DECL_ITERATOR_DELETE(name, keyType, valType); \
+	extern LIBBCS_T_MAP_DECL_ITERATOR_NEXT(name, keyType, valType); \
+	extern LIBBCS_T_MAP_DECL_ITERATOR_GETKEY(name, keyType, valType); \
+	extern LIBBCS_T_MAP_DECL_ITERATOR_GETVAL(name, keyType, valType)
+
+#define LIBBCS_T_MAP_DEFN(name, keyType, valType) \
+	LIBBCS_T_MAP_DECL(name, keyType, valType); \
+	internal int name##_indexOfKey_ (struct name PTR_SPC* ptr, keyType key) \
+	{ \
+		return ACS_NamedExecuteWithResult(_LIBBCS_REV "-bsearch", (int)ptr.keys, lengthof(ptr.keys) - 1, (int)key); \
+	} \
+	LIBBCS_T_MAP_DECL_NEW(name, keyType, valType) \
+	{ \
+		/*Log(s:"currently at: ", s:__FUNCTION__);*/ \
+		struct name PTR_SPC* ptr; \
+		ptr = bcs::malloc(lengthof(ptr)); \
+		ptr.keys = bcs::arrNew(0); \
+		ptr.vals = bcs::arrNew(0); \
+		return ptr; \
+	} \
+	LIBBCS_T_MAP_DECL_DELETE(name, keyType, valType) \
+	{ \
+		/*Log(s:"currently at: ", s:__FUNCTION__);*/ \
+		bcs::arrDelete(ptr.keys); \
+		bcs::arrDelete(ptr.vals); \
+		bcs::free((int)ptr); \
+	} \
+	LIBBCS_T_MAP_DECL_GET(name, keyType, valType) \
+	{ \
+		/*Log(s:"currently at: ", s:__FUNCTION__);*/ \
+		int idx = name##_indexOfKey_(ptr, key); \
+		return (idx != -1) ? ptr.vals[idx] : (raw)0; \
+	} \
+	LIBBCS_T_MAP_DECL_PUT(name, keyType, valType) \
+	{ \
+		/*Log(s:"currently at: ", s:__FUNCTION__);*/ \
+		int idx = name##_indexOfKey_(ptr, key); \
+		if(idx == -1) \
+		{ \
+			int len = lengthof(ptr.keys); \
+			ptr.keys = bcs::arrResize(ptr.keys, len + 1); \
+			ptr.vals = bcs::arrResize(ptr.vals, len + 1); \
+			int k = len; \
+			while( (k > 0) && (ptr.keys[k - 1] > key) ) \
+			{ \
+				ptr.keys[k] = ptr.keys[k - 1]; \
+				ptr.vals[k] = ptr.vals[k - 1]; \
+				k--; \
+			} \
+			ptr.keys[k] = key; \
+			ptr.vals[k] = val; \
+			return; \
+		} \
+		ptr.keys[idx] = key; \
+		ptr.vals[idx] = val; \
+		Log(s:"key = ", i:ptr.keys[idx]); \
+	} \
+	LIBBCS_T_MAP_DECL_REMOVE(name, keyType, valType) \
+	{ \
+		/*Log(s:"currently at: ", s:__FUNCTION__);*/ \
+		int idx = name##_indexOfKey_(ptr, key); \
+		if(idx != -1) \
+		{ \
+			ptr.keys = bcs::arrResize(ptr.keys, lengthof(ptr.keys) - 1); \
+			ptr.vals = bcs::arrResize(ptr.vals, lengthof(ptr.keys) - 1); \
+			/*TODO add shifting here*/ \
+		} \
+	} \
+	LIBBCS_T_MAP_DECL_CHECK(name, keyType, valType) \
+	{ \
+		return name##_indexOfKey_(ptr, key) != -1; \
+	} \
+	LIBBCS_T_MAP_DECL_ITERATOR_NEW(name, keyType, valType) \
+	{ \
+		struct name##Iterator* ptr; \
+		ptr = bcs::malloc(lengthof(ptr)); \
+		ptr.currKey = -1; \
+		ptr.map = map; \
+		return ptr; \
+	} \
+	LIBBCS_T_MAP_DECL_ITERATOR_DELETE(name, keyType, valType) \
+	{ \
+		bcs::free((int)ptr); \
+	} \
+	LIBBCS_T_MAP_DECL_ITERATOR_NEXT(name, keyType, valType) \
+	{ \
+		bool success = ++ptr.currKey < lengthof(ptr.map.keys); \
+		if(!success) \
+			name##Iterator_Delete(ptr); \
+		return success; \
+	} \
+	LIBBCS_T_MAP_DECL_ITERATOR_GETKEY(name, keyType, valType) \
+	{ \
+		return (ptr.currKey >= 0) ? ptr.map.keys[ptr.currKey] : (raw)0; \
+	} \
+	LIBBCS_T_MAP_DECL_ITERATOR_GETVAL(name, keyType, valType) \
+	{ \
+		return (ptr.currKey >= 0) ? ptr.map.vals[ptr.currKey] : (raw)0; \
+	} \
+
+}
+
+/* unused
+ * if(lengthof(ptr.keys) <= 0) \
+ return -1; \*
+ int idx = ACS_NamedExecuteWithResult(_LIBBCS_REV "-bsearch", (int)ptr.keys, lengthof(ptr.keys), (int)key); \
+ Log(s:__FUNCTION__, s:" returning ", i:idx); \
+ return idx; \
+ */
+
+/*
+ * for(int i = lengthof(ptr.keys); i > 0; i--) { \
+ i f(ptr.keys*[i] == key) \
+ return i; \
+ } \
+ return -1; \
+ */
