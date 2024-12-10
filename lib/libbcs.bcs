@@ -50,7 +50,7 @@ internal struct HeapHead
 };
 
 // Main memory allocation function. Returns a pointer to a buffer of the requested size.
-internal int malloc (int size)
+internal void[]* malloc (int size)
 {
     struct HeapHead PTR_SPC* head;
     struct AllocBlock PTR_SPC* block;
@@ -137,7 +137,7 @@ internal int malloc (int size)
 }
 
 // Frees the memory so it is usable by future calls to malloc.
-internal void free (int ptr)
+internal void free (void[]* ptr)
 {
     if(!ptr)
         return;
@@ -145,7 +145,7 @@ internal void free (int ptr)
     struct HeapHead PTR_SPC* head;
     struct AllocBlock PTR_SPC* block, nextBlock;
 
-    block = ptr - lengthof(block);
+    block = (int)ptr - lengthof(block);
     nextBlock = block.next;
 
     // Should merge blocks here.
@@ -161,7 +161,7 @@ internal void free (int ptr)
     head.lastFreed = block;
 }
 
-internal void memmove (int dstIn, int srcIn, int size)
+internal void memmove (void[]* dstIn, void[]* srcIn, int size)
 {
 	int[] PTR_SPC* dst = dstIn;
 	int[] PTR_SPC* src = srcIn;
@@ -169,12 +169,12 @@ internal void memmove (int dstIn, int srcIn, int size)
 	if(size < 1)
 		return;
 
-	if(dstIn < srcIn)
+	if((int)dstIn < (int)srcIn)
 	{
 		for(int i = 0; i < size; i++)
 			dst[i] = src[i];
 	}
-	else if(dstIn > srcIn)
+	else if((int)dstIn > (int)srcIn)
 	{
 		for(int i = size - 1; i --> 0;)
 			dst[i] = src[i];
@@ -182,7 +182,7 @@ internal void memmove (int dstIn, int srcIn, int size)
 }
 
 // Creates a new bigger buffer if needed, copying the contents of the original passed in.
-internal int realloc (int oldPtr, int size)
+internal void[]* realloc (void[]* oldPtr, int size)
 {
     if(!oldPtr)
         return malloc(size);
@@ -195,13 +195,13 @@ internal int realloc (int oldPtr, int size)
 
     struct AllocBlock PTR_SPC* oldBlock;
 
-    oldBlock = oldPtr - lengthof(oldBlock);
+    oldBlock = (int)oldPtr - lengthof(oldBlock);
 
     if(oldBlock.size >= size)
         return oldPtr;
 
-    int ptr = malloc(size);
-	Log(s:"realloc new ptr is ", i:ptr);
+    void[]* ptr = malloc(size);
+	Log(s:"realloc new ptr is ", i:(int)ptr);
 
 	memmove(ptr, oldPtr, oldBlock.size);
 
@@ -218,11 +218,11 @@ Script _LIBBCS_REV "-alloca" (int ptr)
 	}
 }
 
-internal int alloca (int size)
+internal void[]* alloca (int size)
 {
-	int ptr = malloc(size);
+	void[]* ptr = malloc(size);
 
-	__libbcs_CallACS(_LIBBCS_REV "-alloca", ptr);
+	__libbcs_CallACS(_LIBBCS_REV "-alloca", (int)ptr);
 
 	return ptr;
 }
@@ -283,7 +283,7 @@ internal void printArrPtr (void[] PTR_SPC? arr)
 
 internal void[] PTR_SPC? arrNew (int len, int elementSize = 1)
 {
-    int ptr = malloc((len + 1 + LIBBCS_ARR_EXTRA) * elementSize);
+    int ptr = (int)malloc((len + 1 + LIBBCS_ARR_EXTRA) * elementSize);
 
     return makeArrPtr(ptr, len);
 }
@@ -301,7 +301,7 @@ internal void[] PTR_SPC? arrResize (void[] PTR_SPC? arr, int newSize, int elemen
 	if(arrBlock.size >= newSize)
 		return makeArrPtr((int)arr - 1, newSize * elementSize);
 
-    int newPtr = realloc((int)arr - 1, (newSize + 1 + LIBBCS_ARR_EXTRA) * elementSize);
+    void[]* newPtr = realloc((int)arr - 1, (newSize + 1 + LIBBCS_ARR_EXTRA) * elementSize);
 
     if(!newPtr)
     {
@@ -309,7 +309,7 @@ internal void[] PTR_SPC? arrResize (void[] PTR_SPC? arr, int newSize, int elemen
         return arr;
     }
 
-    return makeArrPtr(newPtr, newSize * elementSize);
+    return makeArrPtr((int)newPtr, newSize * elementSize);
 }
 
 #if 1
