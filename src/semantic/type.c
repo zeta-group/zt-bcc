@@ -221,11 +221,11 @@ static bool same_ref( struct ref* a, struct ref* b ) {
 }
 
 static bool same_ref_struct( struct ref_struct* a, struct ref_struct* b ) {
-   return ( (a->storage == b->storage) && (a->storage_index == b->storage_index) );
+   return ( (a->storage == b->storage) && ( (a->storage == STORAGE_MAP) || (a->storage_index == b->storage_index)) );
 }
 
 static bool same_ref_array( struct ref_array* a, struct ref_array* b ) {
-   return ( (a->dim_count == b->dim_count) && (a->storage == b->storage) && (a->storage_index == b->storage_index) &&
+   return ( (a->dim_count == b->dim_count) && (a->storage == b->storage) && ( (a->storage == STORAGE_MAP) || (a->storage_index == b->storage_index)) &&
    (a->ref.nullable == b->ref.nullable) && (a->ref.question_mark == b->ref.question_mark) );
 }
 
