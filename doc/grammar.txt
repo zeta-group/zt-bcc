@@ -1,4 +1,4 @@
-BCS Grammar
+ZT-BCS Grammar
 ===============================================================================
 
 Special terminals:
@@ -21,6 +21,10 @@ module-item:
    <pseudo-directive>
    <namespace-member>
 
+on-off:
+   on
+   off
+
 // The names of pseudo directives are context-sensitive keywords.
 pseudo-directive:
    # include <string>
@@ -42,6 +46,9 @@ pseudo-directive:
    # nowadauthor
    # region
    # endregion
+   # pragma raw define <on-off>
+   # pragma raw include <on-off>
+   # pragma pointer_space <reference-storage>
 
 namespace:
    <namespace-header> { <namespace-member-list> }
@@ -244,12 +251,14 @@ reference-storage:
    E
 
 reference-storage-name:
+   module
    world
    global
 
 reference-marker:
    &
    ?
+   *
 
 reference-list:
    <reference-item>
