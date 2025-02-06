@@ -953,8 +953,8 @@ static void prepend_ref( struct ref_reading* reading, struct ref* part ) {
 
 static void read_ref_storage ( struct parse *parse, int *storage, int *storage_index )
 {
-   *storage = STORAGE_MAP;
-   *storage_index = 0;
+   *storage = parse->lib->def_storage_type;
+   *storage_index = parse->lib->def_storage_index;
 
    if( (parse->tk == TK_WORLD) || (parse->tk == TK_GLOBAL) )
    {

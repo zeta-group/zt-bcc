@@ -1239,6 +1239,8 @@ struct library {
    // Only applies to main module.
    bool wadauthor;
    bool uses_nullable_refs;
+   int def_storage_type;
+   int def_storage_index;
 };
 
 struct library_link {

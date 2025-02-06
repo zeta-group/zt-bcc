@@ -724,6 +724,8 @@ struct library* t_add_library( struct task* task ) {
    lib->header = false;
    lib->wadauthor = false;
    lib->uses_nullable_refs = false;
+   lib->def_storage_type = STORAGE_MAP;
+   lib->def_storage_index = 0;
    return lib;
 }
 

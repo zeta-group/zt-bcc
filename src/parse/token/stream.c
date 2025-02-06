@@ -451,6 +451,32 @@ static void perform_expan( struct parse* parse, struct macro_expan* expan ) {
    expan->output = expan->output_head;
 }
 
+static void expand_predef_pspctype( struct parse* parse,
+   struct macro_expan* expan ) {
+   char value[ 11 ];
+   int length = snprintf( value, sizeof( value ), "%d", parse->lib->def_storage_type );
+   struct token token;
+   p_init_token( &token );
+   token.type = TK_LIT_DECIMAL;
+   token.text = t_intern_text( parse->task, value, length );
+   token.length = length;
+   token.pos = expan->pos;
+   output( parse, expan, &token );
+}
+
+static void expand_predef_pspcidx( struct parse* parse,
+   struct macro_expan* expan ) {
+   char value[ 11 ];
+   int length = snprintf( value, sizeof( value ), "%d", parse->lib->def_storage_index );
+   struct token token;
+   p_init_token( &token );
+   token.type = TK_LIT_DECIMAL;
+   token.text = t_intern_text( parse->task, value, length );
+   token.length = length;
+   token.pos = expan->pos;
+   output( parse, expan, &token );
+}
+
 static void expand_predef_macro( struct parse* parse,
    struct macro_expan* expan ) {
    switch ( expan->macro->predef ) {
@@ -469,6 +495,12 @@ static void expand_predef_macro( struct parse* parse,
    case PREDEFMACRO_IMPORTED:
    case PREDEFMACRO_INCLUDED:
       expand_predef_imported( parse, expan );
+      break;
+   case PREDEFMACRO_PSPCIDX:
+      expand_predef_pspcidx( parse, expan );
+      break;
+   case PREDEFMACRO_PSPCTYPE:
+      expand_predef_pspctype( parse, expan );
       break;
    default:
       UNREACHABLE();

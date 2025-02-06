@@ -180,6 +180,7 @@ enum tk {
    TK_COLONCOLON,
    TK_LENGTHOF,
    TK_INTERNAL,
+   TK_MODULE,
 
    TK_TOTAL,
 
@@ -242,6 +243,8 @@ struct macro {
       PREDEFMACRO_DATE,
       PREDEFMACRO_IMPORTED,
       PREDEFMACRO_INCLUDED,
+      PREDEFMACRO_PSPCTYPE,
+      PREDEFMACRO_PSPCIDX
    } predef;
    bool func_like;
    bool variadic;

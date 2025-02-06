@@ -809,12 +809,10 @@ static void read_pragma( struct parse* parse ) {
       p_read_preptk( parse );
 	  const char* text = parse->token->text;
 	  
-	  if( bcc_stricmp( "define", text ) == 0 )
-	  {
+	  if( bcc_stricmp( "define", text ) == 0 ) {
 		 parse->preproc_pragmas.raw_define = read_pragma_onoff( parse );
 	  }
-	  else if( bcc_stricmp( "include", text ) == 0 )
-	  {
+	  else if( bcc_stricmp( "include", text ) == 0 ) {
 		 parse->preproc_pragmas.raw_include = read_pragma_onoff( parse );
 	  }
 	  else
@@ -823,8 +821,46 @@ static void read_pragma( struct parse* parse ) {
          p_bail( parse );
 	  }
    }
-   else
-   {
+   else if( bcc_stricmp( "pointer_space", name ) == 0 ) {
+      p_read_preptk( parse );
+      const char* texto = parse->token->text;
+
+      if( ( bcc_stricmp( "world", texto ) == 0 ) || ( bcc_stricmp( "global", texto ) == 0 ) ) {
+         int idx_max = MAX_GLOBAL_VARS - 1;
+
+         if( bcc_stricmp( "world", texto ) == 0 )  {
+            parse->lib->def_storage_type = STORAGE_WORLD;
+            idx_max = MAX_WORLD_VARS - 1;
+         }
+         else {
+            parse->lib->def_storage_type = STORAGE_GLOBAL;
+         }
+
+         p_read_preptk( parse );
+         for(int i = strlen(parse->token->text) - 1; i > 0; i--) {
+            if( ! isdigit(parse->token->text[i]) ) {
+               p_diag( parse, DIAG_POS_ERR, &parse->token->pos, "unexpected %s, expected decimal literal", parse->token->text );
+               p_bail( parse );
+            }
+         }
+
+         parse->lib->def_storage_index = atol( parse->token->text );
+         if( ( parse->lib->def_storage_index > idx_max ) || ( parse->lib->def_storage_index < 0 ) ) {
+            p_diag( parse, DIAG_POS_ERR, &parse->token->pos, "invalid index %s outside of valid range [0 .. %i]", parse->token->text, idx_max );
+            p_bail( parse );
+         }
+
+         p_read_preptk( parse );
+      }
+      else if( bcc_stricmp( "module", texto ) == 0 ) {
+         parse->lib->def_storage_type = STORAGE_MAP;
+      }
+      else {
+         p_diag( parse, DIAG_POS_ERR, &parse->token->pos, "unexpected %s, expected module, world or global", texto );
+         p_bail( parse );
+      }
+   }
+   else {
       p_diag( parse, DIAG_POS_ERR, &parse->token->pos, "unknown pragma %s", name);
       p_bail( parse );
    }
@@ -980,6 +1016,16 @@ void p_define_predef_macros( struct parse* parse ) {
    macro = alloc_macro( parse );
    macro->name = "__DATE__";
    macro->predef = PREDEFMACRO_DATE;
+   append_macro( parse, macro );
+   // Macro: __PTR_SPC_TYPE__
+   macro = alloc_macro( parse );
+   macro->name = "__PTR_SPC_TYPE__";
+   macro->predef = PREDEFMACRO_PSPCTYPE;
+   append_macro( parse, macro );
+   // Macro: __PTR_SPC_IDX__
+   macro = alloc_macro( parse );
+   macro->name = "__PTR_SPC_IDX__";
+   macro->predef = PREDEFMACRO_PSPCIDX;
    append_macro( parse, macro );
 }
 
