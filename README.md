@@ -1,4 +1,4 @@
-<kbd>bcc</kbd> is an enhanced ACS bytecode compiler for the ZDoom family of ports.
+`zt-bcc` is a fork of `bcc`, is an enhanced ACS bytecode compiler for the ZDoom family of ports.
 
 ```
 strict namespace SampleCode {
@@ -25,5 +25,13 @@ BCS is an extension of ACS. BCS is mostly compatible with ACS and provides many 
 * `&&` and `||` operators are short-circuited
 * `foreach` loop
 * `?:` operator
+
+Additionally, as `zt-bcc` extensions, the following features are available:
+
+* libbcs, providing many useful functions, like memory allocation, dynamic array support, map template type, and more.
+* Pointer types
+* References and pointers can point into world/global storage
+* Convenient `#pragma`s, like `raw define`, `raw include`, and `pointer_space`
+* Bugfixes and polish
 
 See the [wiki](https://github.com/zeta-group/zt-bcc/wiki) page for an overview of the features.
