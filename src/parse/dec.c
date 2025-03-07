@@ -944,6 +944,7 @@ static void init_ref( struct ref* ref, int type, struct pos* pos ) {
    ref->pos = *pos;
    ref->nullable = false;
    ref->implicit = false;
+   ref->question_mark = false;
 }
 
 static void prepend_ref( struct ref_reading* reading, struct ref* part ) {

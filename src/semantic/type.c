@@ -84,6 +84,7 @@ void s_init_type_info_array_ref( struct type_info* type, struct ref* ref,
    array->ref.next = type->ref;
    array->ref.type = REF_ARRAY;
    array->ref.nullable = false;
+   array->ref.question_mark = false;
    array->ref.implicit = true;
    array->dim_count = dim_count;
    array->storage = STORAGE_MAP;
@@ -126,6 +127,7 @@ void s_init_type_info_null( struct type_info* type ) {
    ref->next = NULL;
    ref->type = REF_NULL;
    ref->nullable = true;
+   ref->question_mark = true;
    ref->implicit = true;
    type->ref = ref;
 }
@@ -137,6 +139,7 @@ void s_decay( struct semantic* semantic, struct type_info* type ) {
       array->ref.next = type->ref;
       array->ref.type = REF_ARRAY;
       array->ref.nullable = false;
+      array->ref.question_mark = false;
       array->ref.implicit = true;
       array->dim_count = 0;
       array->storage = type->storage;
@@ -225,8 +228,8 @@ static bool same_ref_struct( struct ref_struct* a, struct ref_struct* b ) {
 }
 
 static bool same_ref_array( struct ref_array* a, struct ref_array* b ) {
-   return ( (a->dim_count == b->dim_count) && (a->storage == b->storage) && ( (a->storage == STORAGE_MAP) || (a->storage_index == b->storage_index)) &&
-   (a->ref.nullable == b->ref.nullable) && (a->ref.question_mark == b->ref.question_mark) );
+   return ( (a->dim_count == b->dim_count) && (a->storage == b->storage) && (a->ref.nullable == b->ref.nullable) &&
+   (a->ref.question_mark == b->ref.question_mark) && ( (a->storage == STORAGE_MAP) || (a->storage_index == b->storage_index)) );
 }
 
 static bool same_ref_func( struct ref_func* a, struct ref_func* b ) {

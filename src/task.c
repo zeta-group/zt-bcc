@@ -1137,6 +1137,7 @@ static void init_ref( struct ref* ref, int type ) {
    ref->next = NULL;
    ref->type = type;
    ref->nullable = false;
+   ref->question_mark = false;
    ref->implicit = false;
 }
 
