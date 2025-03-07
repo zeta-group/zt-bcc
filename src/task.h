@@ -266,7 +266,6 @@ struct ref_struct {
    struct ref ref;
    int storage;
    int storage_index;
-   bool question_mark;
 };
 
 struct ref_array {
