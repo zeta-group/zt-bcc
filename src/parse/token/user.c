@@ -119,6 +119,7 @@ static void read_token( struct parse* parse ) {
          { "lengthof", TK_LENGTHOF },
          { "let", TK_LET },
          { "memcpy", TK_MEMCPY },
+         { "module", TK_MODULE },
          { "namespace", TK_NAMESPACE },
          { "null", TK_NULL },
          { "private", TK_PRIVATE },

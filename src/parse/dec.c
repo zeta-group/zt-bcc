@@ -892,6 +892,7 @@ static void read_ref( struct parse* parse, struct ref_reading* reading ) {
    switch ( parse->tk ) {
    case TK_GLOBAL:
    case TK_WORLD:
+   case TK_MODULE:
    case TK_SCRIPT:
    case TK_BIT_AND:
    case TK_QUESTION_MARK:
@@ -957,9 +958,15 @@ static void read_ref_storage ( struct parse *parse, int *storage, int *storage_i
    *storage = parse->lib->def_storage_type;
    *storage_index = parse->lib->def_storage_index;
 
-   if( (parse->tk == TK_WORLD) || (parse->tk == TK_GLOBAL) )
+   if( parse->tk == TK_MODULE )
    {
-      *storage = (parse->tk == TK_WORLD) ? STORAGE_WORLD : STORAGE_GLOBAL;
+      *storage = STORAGE_MAP;
+      *storage_index = 0;
+      p_read_tk( parse );
+   }
+   else if( ( parse->tk == TK_WORLD ) || ( parse->tk == TK_GLOBAL ) )
+   {
+      *storage = ( parse->tk == TK_WORLD ) ? STORAGE_WORLD : STORAGE_GLOBAL;
       p_read_tk( parse );
 
       p_test_tk( parse, TK_COLON );
@@ -1018,7 +1025,7 @@ static bool is_array_ref( struct parse* parse ) {
          }
       }
 
-      if( iter.token->type == TK_WORLD || iter.token->type == TK_GLOBAL )
+      if( iter.token->type == TK_MODULE || iter.token->type == TK_WORLD || iter.token->type == TK_GLOBAL )
          return true;
 
       if ( iter.token->type == TK_BIT_AND || iter.token->type == TK_STAR ||
