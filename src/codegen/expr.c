@@ -2403,8 +2403,8 @@ static void visit_param( struct codegen* codegen, struct result* result,
             push_indexed( codegen, STORAGE_LOCAL, param->index + 1 );
             c_update_dimtrack( codegen );
          }
-         result->storage = STORAGE_MAP;
-         result->index = codegen->shary.index;
+         result->storage = ((struct ref_array*)param->ref)->storage;
+         result->index = (result->storage == STORAGE_MAP) ? codegen->shary.index : ((struct ref_array*)param->ref)->storage_index;
          result->status = R_ARRAYINDEX;
       }
       else {
