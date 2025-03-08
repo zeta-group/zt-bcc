@@ -130,7 +130,13 @@ enum {
    PROP_WEAPONLEVEL2,
    PROP_FLIGHT,
    PROP_SPEED = 15,
-   PROP_BUDDHA
+   PROP_BUDDHA,
+   PROP_BUDDHA2,
+   PROP_FRIGHTENING,
+   PROP_NOCLIP,
+   PROP_NOCLIP2,
+   PROP_GODMODE,
+   PROP_GODMODE2
 };
 
 enum {
@@ -764,7 +770,8 @@ enum {
    AAPTR_PLAYER7 = 0x1000,
    AAPTR_PLAYER8 = 0x2000,
    AAPTR_FRIENDPLAYER = 0x4000,
-   AAPTR_GET_LINETARGET = 0x8000
+   AAPTR_GET_LINETARGET = 0x8000,
+   AAPTR_PLAYER_GETCAMERA = 0x8000000
 };
 
 enum {
@@ -1193,7 +1200,15 @@ enum {
    GAMEEVENT_CHAT,
    GAMEEVENT_PLAYERCONNECT,
    GAMEEVENT_ACTOR_SPAWNED,
-   GAMEEVENT_ACTOR_DAMAGED
+   GAMEEVENT_ACTOR_DAMAGED,
+   GAMEEVENT_ACTOR_DAMAGED_PREMOD,
+   GAMEEVENT_DOMINATION_CONTROL,
+   GAMEEVENT_DOMINATION_POINT,
+   GAMEEVENT_PLAYERLEAVESSERVER,
+   GAMEEVENT_LEVEL_INIT,
+   GAMEEVENT_JOINQUEUECHANGED,
+   GAMEEVENT_DOMINATION_PRECONTROL,
+   GAMEEVENT_DOMINATION_CONTEST
 };
 
 enum : bool {
@@ -1218,7 +1233,9 @@ enum {
    SCORE_DEATHS,
    SCORE_KILLS,
    SCORE_ITEMS,
-   SCORE_SECRETS
+   SCORE_SECRETS,
+   SCORE_SPREAD,
+   SCORE_RANK
 };
 
 enum {
@@ -1230,9 +1247,70 @@ enum {
 };
 
 enum {
+   MAPPOSITION_CURRENT,
+   MAPPOSITION_NEXT
+};
+
+enum {
+   LEAVEREASON_LEFT,
+   LEAVEREASON_KICKED,
+   LEAVEREASON_ERROR,
+   LEAVEREASON_TIMEOUT,
+   LEAVEREASON_RECONNECT
+};
+
+enum {
+   PLAYERSKIN_USERINFO,
+   PLAYERSKIN_WEAPON,
+   PLAYERSKIN_ACS,
+   PLAYERSKIN_VISIBLE
+};
+
+enum {
+   POINTINFO_NAME,
+   POINTINFO_OWNER,
+   POINTINFO_DISABLED
+};
+
+enum {
    AAPTR_DAMAGE_SOURCE    = 0x10000000,
    AAPTR_DAMAGE_INFLICTOR = 0x40000000,
    AAPTR_DAMAGE_TARGET    = 0x80000000
+};
+
+enum {
+   LUMP_OPEN_FULLPATH = 1
+};
+
+enum {
+   LUMP_READ_BYTE,
+   LUMP_READ_UBYTE,
+   LUMP_READ_SHORT,
+   LUMP_READ_USHORT,
+   LUMP_READ_INT,
+   LUMP_READ_FLOAT
+};
+
+enum {
+   LUMP_INFO_SIZE,
+   LUMP_INFO_NAME
+};
+
+enum {
+   SPROP_TYPE_UNKNOWN,
+   SPROP_TYPE_INT,
+   SPROP_TYPE_BOOL,
+   SPROP_TYPE_FLOAT,
+   SPROP_TYPE_STRING
+};
+
+enum {
+   GAMELIMIT_FRAGS,
+   GAMELIMIT_TIME,
+   GAMELIMIT_POINTS,
+   GAMELIMIT_DUELS,
+   GAMELIMIT_WINS,
+   GAMELIMIT_WAVES
 };
 
 enum {
@@ -1689,6 +1767,40 @@ special
 -148:GetChatMessage(int, int):str,
 -149:GetMapRotationSize():int,
 -150:GetMapRotationInfo(int, int):raw,
+-151:GetMapPosition(int):int,
+-152:GetEventResult():int,
+-153:GetActorSectorLocation(int, bool):str,
+-154:ChangeTeamScore(int, int, int; bool):int,
+-155:SetGameplaySetting(str, int):bool,
+-156:SetCustomPlayerValue(str, int, raw):int,
+-157:GetCustomPlayerValue(str, int):raw,
+-158:ResetCustomDataToDefault(str, int):int,
+-159:LumpOpen(str, int; int):int,
+-160:LumpRead(int, int; int):raw,
+-161:LumpReadString(int, int; int):str,
+// LumpReadArray is a set of 4 functions, whose definition is
+// built-in to ACC. So 162-165 are used up function indices.
+-166:LumpGetInfo(int, int):raw,
+-167:LumpClose(int):void,
+-168:AddBot(str, int):int,
+-169:RemoveBot(str):int,
+-170:OpenMenu(str):int,
+-171:CloseMenu():int,
+-172:BanFromGame(int, int; str):int,
+-173:GetPlayerStatus(int):int,
+-174:SetPlayerWeaponZoomFactor(int, fixed; int):int,
+-175:SetPlayerSkin(int, str; bool):int,
+-176:GetPlayerSkin(int, int):str,
+-177:GetPlayerCountry(int, int):str,
+-178:SetNextMapPosition(int, bool):int,
+-179:GivePlayerMedal(int, str, bool):int,
+-180:GetPlayerJoinQueuePosition(int):int,
+-181:SkipJoinQueue(int):int,
+-182:GetControlPointInfo(raw, raw):raw,
+-183:SetControlPointInfo(raw, raw, raw):raw,
+-184:GetSkinProperty(raw, raw; raw, raw):raw,
+-185:IsPlayerContestingControlPoint(raw, raw):raw,
+
 
 // ZDoom/GZDoom.
 -200:CheckClass(str):bool,
