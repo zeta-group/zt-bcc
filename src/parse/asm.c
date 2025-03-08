@@ -15,7 +15,7 @@ void p_read_asm( struct parse* parse, struct stmt_reading* reading ) {
    p_test_tk( parse, TK_GT );
    p_read_tk( parse );
    read_opcode( parse, inline_asm );
-   if ( parse->tk != TK_NL ) {
+   if ( parse->tk != TK_SEMICOLON ) {
       while ( true ) {
          read_arg( parse, inline_asm );
          if ( parse->tk == TK_COMMA ) {
@@ -26,7 +26,7 @@ void p_read_asm( struct parse* parse, struct stmt_reading* reading ) {
          }
       }
    }
-   p_test_tk( parse, TK_NL );
+   p_test_tk( parse, TK_SEMICOLON );
    parse->create_nltk = false;
    p_read_tk( parse );
    reading->node = &inline_asm->node;
