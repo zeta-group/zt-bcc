@@ -13,7 +13,7 @@ strict namespace bcs {
 #define LIBBCS_ARR_EXTRA 1
 #endif
 
-#define _LIBBCS_REV "libbcs0100-alpha-3"
+#define _LIBBCS_REV "libbcs0100-alpha-5"
 #endif
 
 special -44:__libbcs_CallACS(str;raw,raw,raw,raw):int;
@@ -64,7 +64,7 @@ internal void[]* malloc (int size)
 
         block.used = true;
         block.size = size;
-        block.next = 0;
+        block.next = null;
 
         head.tail = (int)block;
 
@@ -75,7 +75,7 @@ internal void[]* malloc (int size)
 
     if( block && (block.size >= size) )
     {
-        head.lastFreed = 0;
+        head.lastFreed = null;
         block.used = true;
         return (int)block + lengthof(block);
     }
@@ -129,7 +129,7 @@ internal void[]* malloc (int size)
 		#else
 		Log(s:"\cglibbcs malloc ERROR: heap overflow!");
 		#endif
-		return 0;
+		return null;
 	}
 
     return (int)block + lengthof(block);
@@ -180,6 +180,20 @@ internal void memmove (void[]* dstIn, void[]* srcIn, int size)
 	}
 }
 
+internal int memcmp (void[]* ptr1in, void[]* ptr2in, int size)
+{
+	int[]* ptr1 = ptr1in;
+	int[]* ptr2 = ptr2in;
+
+	for(int i = 0; i < size; i++)
+	{
+		if(ptr1[i] != ptr2[i])
+			return ptr1[i] - ptr2[i];
+	}
+
+	return 0;
+}
+
 // Creates a new bigger buffer if needed, copying the contents of the original passed in.
 internal void[]* realloc (void[]* oldPtr, int size)
 {
@@ -189,7 +203,7 @@ internal void[]* realloc (void[]* oldPtr, int size)
     if(!size)
     {
         free(oldPtr);
-        return 0;
+        return null;
     }
 
     struct AllocBlock* oldBlock;
@@ -200,7 +214,6 @@ internal void[]* realloc (void[]* oldPtr, int size)
         return oldPtr;
 
     void[]* ptr = malloc(size);
-	Log(s:"realloc new ptr is ", i:(int)ptr);
 
 	memmove(ptr, oldPtr, oldBlock.size);
 
@@ -259,30 +272,33 @@ internal void[]? makeArrPtr (int ptr, int len)
 	}* h = ptr;
 	h.a = len;
 
-	>pushscriptvar 0
-	>assignscriptvar 2 // Write pointer to array.
-	>incscriptvar 2 // Increment to point to the first element.
-	>pushscriptvar 0
-	>assignscriptvar 3 // Write pointer to array length.
+	>pushscriptvar 0;
+	>assignscriptvar 2; // Write pointer to array.
+	>incscriptvar 2; // Increment to point to the first element.
+	>pushscriptvar 0;
+	>assignscriptvar 3; // Write pointer to array length.
 
     return arr;
 }
 
 internal void printArrPtr (void[]? arr)
 {
-	buildmsg(Log())
+	buildmsg(Print())
 	{
-		>pushscriptvar 0
-		>printnumber
+		>pushscriptvar 0;
+		>printnumber;
 		Append(s:", ");
-		>pushscriptvar 1
-		>printnumber
+		>pushscriptvar 1;
+		>printnumber;
 	}
 }
 
 internal void[]? arrNew (int len, int elementSize = 1)
 {
     int ptr = (int)malloc((len + 1 + LIBBCS_ARR_EXTRA) * elementSize);
+
+    if(!ptr)
+		return null;
 
     return makeArrPtr(ptr, len);
 }
@@ -318,186 +334,92 @@ internal void[]? arrResize (void[]? arr, int newSize, int elementSize = 1)
 							raw i15 = 0, raw i16 = 0
 
 	#define __printf_args string, i1, i2, i3, i4, i5, i6, i7, i8, i9, i10, i11, i12, i13, i14, i15, i16
-
-#define BCSFMT_ACCURATE_FIXED
-
-#ifdef BCSFMT_ACCURATE_FIXED
-
-internal void PrintFixedPrec (fixed n)
-{
-	str string;
-	int integerPart = int(n);
-	int fractPart = ((((int)n) & 65535) * 10000) / 65536;
-
-	buildmsg(string = StrParam())
-	{
-		Append(i:integerPart, c:'.');
-
-		if(fractPart < 1)
-		{
-			Append(s:"0000");
-			goto done;
-		}
-		else if(fractPart < 10)
-			Append(s:"000");
-		else if(fractPart < 100)
-			Append(s:"00");
-		else if(fractPart < 1000)
-			Append(s:"0");
-
-		Append(i:fractPart);
-
-		done:
-	}
-
-	>pushscriptvar 1
-	>printstring
-}
-
-#endif
 #endif
 
-internal void __putc (int c)
-{
-	>pushscriptvar 0
-	>printcharacter
-}
-
-internal void PrintInt (raw i)
-{
-	>pushscriptvar 0
-	>printnumber
-}
-
-internal void PrintFixed (raw i)
-{
-	>pushscriptvar 0
-	>PrintFixed
-}
+internal raw __printf_params_array[16];
 
 #if 1
-	#define PUSH_PARAMS_ARRAY >pushscriptarray 0
-	#define PUSH_PARAMNUM >pushscriptvar 17
+	#define __LIBBCS_PRINTF_IMPL() \
+	__printf_params_array[0] = i1; \
+	__printf_params_array[1] = i2; \
+	__printf_params_array[2] = i3; \
+	__printf_params_array[3] = i4; \
+	__printf_params_array[4] = i5; \
+	__printf_params_array[5] = i6; \
+	__printf_params_array[6] = i7; \
+	__printf_params_array[7] = i8; \
+	__printf_params_array[8] = i9; \
+	__printf_params_array[9] = i10; \
+	__printf_params_array[10] = i11; \
+	__printf_params_array[11] = i12; \
+	__printf_params_array[12] = i13; \
+	__printf_params_array[13] = i14; \
+	__printf_params_array[14] = i15; \
+	__printf_params_array[15] = i16; \
+	int paramNum; \
+	int len = strlen(string); \
+	int ch; \
+	raw tmp; \
+	for(int i = 0; i < len; i++) \
+	{ \
+		ch = string[i]; \
+		if(ch != '%') \
+		{ \
+			>pushscriptvar 20; \
+			>printcharacter; \
+		} \
+		else \
+		{ \
+			i++; \
+			if(string[i] == '%') \
+			{ \
+				>pushnumber 37; \
+				>printcharacter; \
+				continue; \
+			} \
+			tmp = __printf_params_array[paramNum]; \
+			>pushscriptvar 21; \
+			switch(string[i]) \
+			{ \
+			case 'i': \
+			case 'd': >printnumber; break; \
+			case 'c': >printcharacter; break; \
+			case 'f': >printfixed; break; \
+			case 's': >printstring; break; \
+			case 'n': >printname; break; \
+			case 'x': >printhex; break; \
+			case 'b': >printbinary; break; \
+			case 'k': >printbind; break; \
+			case 'l': >printlocalized; break; \
+			default: \
+				Log(s:__FUNCTION__, s:" ERROR: unexpected flag identifier ", c:string[i]); \
+			goto exitloop; \
+			} \
+			paramNum++; \
+		} \
+	} \
+	exitloop:
 #endif
-
-internal void __printf (__printf_parms)
-{
-	raw params[] = {i1, i2, i3, i4, i5, i6, i7, i8, i9, i10, i11, i12, i13, i14, i15, i16};
-
-	int paramNum;
-
-	int len = strlen(string);
-
-	int ch;
-
-	for(int i = 0; i < len; i++)
-	{
-		ch = string[i];
-
-		if(ch != '%')
-		{
-			__putc(ch);
-		}
-		else
-		{
-			switch(string[++i])
-			{
-			case 'i':
-			case 'd':
-				PUSH_PARAMNUM
-				PUSH_PARAMS_ARRAY
-				>printnumber
-				paramNum++;
-			break;
-
-			case 'c':
-				PUSH_PARAMNUM
-				PUSH_PARAMS_ARRAY
-				>printcharacter
-				paramNum++;
-			break;
-
-			case 'f':
-			#ifdef BCSFMT_ACCURATE_FIXED
-				PrintFixedPrec(params[paramNum++]);
-			#else
-				PUSH_PARAMNUM
-				PUSH_PARAMS_ARRAY
-				>printfixed
-				paramNum++;
-			#endif
-			break;
-
-			case 's':
-				PUSH_PARAMNUM
-				PUSH_PARAMS_ARRAY
-				>printstring
-				paramNum++;
-			break;
-
-			case 'n':
-				PUSH_PARAMNUM
-				PUSH_PARAMS_ARRAY
-				>printname
-				paramNum++;
-			break;
-
-			case 'x':
-				PUSH_PARAMNUM
-				PUSH_PARAMS_ARRAY
-				>printhex
-				paramNum++;
-			break;
-
-			case 'b':
-				PUSH_PARAMNUM
-				PUSH_PARAMS_ARRAY
-				>printbinary
-				paramNum++;
-			break;
-
-			case 'k':
-				PUSH_PARAMNUM
-				PUSH_PARAMS_ARRAY
-				>printbind
-				paramNum++;
-			break;
-
-			case 'l':
-				PUSH_PARAMNUM
-				PUSH_PARAMS_ARRAY
-				>printlocalized
-				paramNum++;
-			break;
-
-			case '%':
-				__putc('%');
-			break;
-
-			default:
-				Log(s:"unexpected flag identifier ", c:string[i]);
-			return;
-			}
-		}
-	}
-}
 
 void printf (__printf_parms)
 {
+	str unused;
 	buildmsg(Print())
-		{__printf(__printf_args);}
+		{__LIBBCS_PRINTF_IMPL()}
 }
 
 void printboldf (__printf_parms)
 {
+	str unused;
 	buildmsg(PrintBold())
-		{__printf(__printf_args);}
+		{__LIBBCS_PRINTF_IMPL()}
 }
 
 void logf (__printf_parms)
 {
+	str unused;
 	buildmsg(Log())
-		{__printf(__printf_args);}
+		{__LIBBCS_PRINTF_IMPL()}
 }
 
 str strformat (__printf_parms)
@@ -505,7 +427,7 @@ str strformat (__printf_parms)
 	str retval;
 
 	buildmsg(retval = StrParam())
-		{__printf(__printf_args);}
+		{__LIBBCS_PRINTF_IMPL()}
 
 	return retval;
 }
@@ -513,61 +435,12 @@ str strformat (__printf_parms)
 #undef __printf_parms
 #undef __printf_args
 
-Script _LIBBCS_REV "-bsearch" (int a_In, int right, int key)
-{
-	int left = 0;
-	while (left <= right)
-	{
-		int[]* arr = a_In;
-
-		int mid = left + (right - left) / 2;
-
-		// Check if key is present at mid
-		if (arr[mid] == key)
-		{
-			SetResultValue(mid);
-			terminate;
-		}
-
-		// If key greater than arr[mid], ignore left half
-		if (arr[mid] < key)
-			left = mid + 1;
-
-		// If key is smaller than or equal to arr[mid],
-		// ignore right half
-		else
-			right = mid - 1;
-	}
-
-	// If we reach here, then element was not present
-	SetResultValue(-1);
-
-	/*if(!n)
-	{
-		SetResultValue(-1);
-		terminate;
-	}
-
-	int[]* a = a_In;
-	int mid = n / 2;
-
-	if(a[mid] < target)
-	{
-		SetResultValue(__libbcs_CallACS(_LIBBCS_REV "-bsearch", a_In + mid + 1, n - mid - 1, target));
-		terminate;
-	}
-	else if(target < a[mid])
-	{
-		SetResultValue(__libbcs_CallACS(_LIBBCS_REV "-bsearch", a_In, mid, target));
-		terminate;
-	}
-
-	SetResultValue(mid);*/
-}
-
 #if 1
+#define LIBBCS_SIMPLE_CMP(a, b) (((int)a) - ((int)b))
+#define LIBBCS_STRING_CMP(a, b) StrCmp(a, b)
+
 #define LIBBCS_T_MAP_DECL_NEW(name, keyType, valType) struct name* name##_New ()
-#define LIBBCS_T_MAP_DECL_DELETE(name, keyType, valType) void name##_Delete(struct name* ptr)
+#define LIBBCS_T_MAP_DECL_DELETE(name, keyType, valType) void name##_Delete (struct name* ptr)
 #define LIBBCS_T_MAP_DECL_GET(name, keyType, valType) valType name##_Get (struct name* ptr, keyType key)
 #define LIBBCS_T_MAP_DECL_PUT(name, keyType, valType) void name##_Put (struct name* ptr, keyType key, valType val)
 #define LIBBCS_T_MAP_DECL_REMOVE(name, keyType, valType) void name##_Remove (struct name* ptr, keyType key)
@@ -603,11 +476,40 @@ Script _LIBBCS_REV "-bsearch" (int a_In, int right, int key)
 	extern LIBBCS_T_MAP_DECL_ITERATOR_GETKEY(name, keyType, valType); \
 	extern LIBBCS_T_MAP_DECL_ITERATOR_GETVAL(name, keyType, valType)
 
-#define LIBBCS_T_MAP_DEFN(name, keyType, valType) \
+#define LIBBCS_T_MAP_DEFN_BSEARCH(name, keyType, valType, cmpfunc) \
+	Script #name "-bsearch_" (int a_In, int right, int key) \
+	{ \
+		/*Log(s:"currently at: ", s:__SCRIPT__);*/ \
+		int left = 0; \
+		while (left <= right) \
+		{ \
+			int[]* arr = a_In; \
+			int mid = left + (right - left) / 2; \
+			/* Check if key is present at mid */ \
+			if(cmpfunc(arr[mid], key) == 0) \
+			{ \
+				SetResultValue(mid); \
+				terminate; \
+			} \
+			/* If key greater than arr[mid], ignore left half */ \
+			if(cmpfunc(arr[mid], key) < 0) \
+				left = mid + 1; \
+			/* If key is smaller than or equal to arr[mid], */ \
+			/* ignore right half */ \
+			else \
+				right = mid - 1; \
+		} \
+		/* If we get here, then element was not present */ \
+		SetResultValue(-1); \
+	}
+
+#define LIBBCS_T_MAP_DEFN(name, keyType, valType, cmpfunc) \
 	LIBBCS_T_MAP_DECL(name, keyType, valType); \
+	LIBBCS_T_MAP_DEFN_BSEARCH(name, keyType, valType, cmpfunc); \
 	internal int name##_indexOfKey_ (struct name* ptr, keyType key) \
 	{ \
-		return ACS_NamedExecuteWithResult(_LIBBCS_REV "-bsearch", (int)ptr.keys, lengthof(ptr.keys) - 1, (int)key); \
+		/*Log(s:"currently at: ", s:__FUNCTION__);*/ \
+		return ACS_NamedExecuteWithResult( #name "-bsearch_", (int)ptr.keys, lengthof(ptr.keys) - 1, (int)key); \
 	} \
 	LIBBCS_T_MAP_DECL_NEW(name, keyType, valType) \
 	{ \
@@ -641,7 +543,7 @@ Script _LIBBCS_REV "-bsearch" (int a_In, int right, int key)
 			ptr.keys = bcs::arrResize(ptr.keys, len + 1); \
 			ptr.vals = bcs::arrResize(ptr.vals, len + 1); \
 			int k = len; \
-			while( (k > 0) && (ptr.keys[k - 1] > key) ) \
+			while( (k > 0) && (cmpfunc(ptr.keys[k - 1], key) > 0) ) \
 			{ \
 				ptr.keys[k] = ptr.keys[k - 1]; \
 				ptr.vals[k] = ptr.vals[k - 1]; \
@@ -653,7 +555,6 @@ Script _LIBBCS_REV "-bsearch" (int a_In, int right, int key)
 		} \
 		ptr.keys[idx] = key; \
 		ptr.vals[idx] = val; \
-		Log(s:"key = ", i:ptr.keys[idx]); \
 	} \
 	LIBBCS_T_MAP_DECL_REMOVE(name, keyType, valType) \
 	{ \
@@ -661,9 +562,14 @@ Script _LIBBCS_REV "-bsearch" (int a_In, int right, int key)
 		int idx = name##_indexOfKey_(ptr, key); \
 		if(idx != -1) \
 		{ \
-			ptr.keys = bcs::arrResize(ptr.keys, lengthof(ptr.keys) - 1); \
-			ptr.vals = bcs::arrResize(ptr.vals, lengthof(ptr.keys) - 1); \
-			/*TODO add shifting here*/ \
+			int len = lengthof(ptr.keys) - 1; \
+			for(; idx < len; idx++) \
+			{ \
+				ptr.keys[idx] = ptr.keys[idx + 1]; \
+				ptr.vals[idx] = ptr.vals[idx + 1]; \
+			} \
+			ptr.keys = bcs::arrResize(ptr.keys, len); \
+			ptr.vals = bcs::arrResize(ptr.vals, len); \
 		} \
 	} \
 	LIBBCS_T_MAP_DECL_CHECK(name, keyType, valType) \
@@ -672,6 +578,7 @@ Script _LIBBCS_REV "-bsearch" (int a_In, int right, int key)
 	} \
 	LIBBCS_T_MAP_DECL_ITERATOR_NEW(name, keyType, valType) \
 	{ \
+		/*Log(s:"currently at: ", s:__FUNCTION__);*/ \
 		struct name##Iterator* ptr; \
 		ptr = bcs::malloc(lengthof(ptr)); \
 		ptr.currKey = -1; \
@@ -680,10 +587,11 @@ Script _LIBBCS_REV "-bsearch" (int a_In, int right, int key)
 	} \
 	LIBBCS_T_MAP_DECL_ITERATOR_DELETE(name, keyType, valType) \
 	{ \
-		bcs::free((int)ptr); \
+		bcs::free(ptr); \
 	} \
 	LIBBCS_T_MAP_DECL_ITERATOR_NEXT(name, keyType, valType) \
 	{ \
+		/*Log(s:"currently at: ", s:__FUNCTION__);*/ \
 		bool success = ++ptr.currKey < lengthof(ptr.map.keys); \
 		if(!success) \
 			name##Iterator_Delete(ptr); \
@@ -699,21 +607,4 @@ Script _LIBBCS_REV "-bsearch" (int a_In, int right, int key)
 	} \
 
 }
-
 #endif
-
-/* unused
- * if(lengthof(ptr.keys) <= 0) \
- return -1; \*
- int idx = ACS_NamedExecuteWithResult(_LIBBCS_REV "-bsearch", (int)ptr.keys, lengthof(ptr.keys), (int)key); \
- Log(s:__FUNCTION__, s:" returning ", i:idx); \
- return idx; \
- */
-
-/*
- * for(int i = lengthof(ptr.keys); i > 0; i--) { \
- i f(ptr.keys*[i] == key) \
- return i; \
- } \
- return -1; \
- */
