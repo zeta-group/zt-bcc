@@ -1432,9 +1432,9 @@ static bool test_scalar_initz( struct semantic* semantic,
    // Note which variable is passed by reference.
    if ( s_is_ref_type( &test->initz_type ) ) {
       if ( expr.var ) {
-         if ( ! expr.var->hidden ) {
+         if ( (! expr.var->hidden) && (((struct ref_array*)expr.var->ref)->storage == STORAGE_MAP) ) {
             s_diag( semantic, DIAG_POS_ERR, &value->expr->pos,
-               "non-private initializer (references only work with private "
+               "non-private initializer (module references only work with private "
                "map variables)" );
             s_bail( semantic );
          }
