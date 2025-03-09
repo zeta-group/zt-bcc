@@ -1319,8 +1319,8 @@ static void subscript_array( struct codegen* codegen,
             copy_diminfo( codegen, lside );
          }
          push_element( codegen, lside->storage, lside->index );
-         result->storage = STORAGE_MAP;
-         result->index = codegen->shary.index;
+         result->storage = ((struct ref_array*)result->ref)->storage;
+         result->index = (result->storage != STORAGE_MAP) ? ((struct ref_array*)result->ref)->storage_index : codegen->shary.index;
       }
       else {
          result->storage = lside->storage;
@@ -1405,8 +1405,8 @@ static void subscript_array_reference( struct codegen* codegen,
             copy_diminfo( codegen, lside );
          }
          push_element( codegen, lside->storage, lside->index );
-         result->storage = STORAGE_MAP;
-         result->index = codegen->shary.index;
+         result->storage = ((struct ref_array*)result->ref)->storage;
+         result->index = (result->storage != STORAGE_MAP) ? ((struct ref_array*)result->ref)->storage_index : codegen->shary.index;
       }
       else {
          result->storage = lside->storage;
@@ -1533,8 +1533,8 @@ static void access_structure_member( struct codegen* codegen,
             copy_diminfo( codegen, lside );
          }
          push_element( codegen, lside->storage, lside->index );
-         result->storage = STORAGE_MAP; // TODO ?
-         result->index = codegen->shary.index;
+         result->storage = ((struct ref_array*)result->ref)->storage;
+         result->index = (result->storage != STORAGE_MAP) ? ((struct ref_array*)result->ref)->storage_index : codegen->shary.index;
       }
       else {
          result->storage = lside->storage;
@@ -1785,8 +1785,8 @@ static void set_user_func_call_result( struct codegen* codegen,
       switch ( result->ref->type ) {
       case REF_STRUCTURE:
       case REF_ARRAY:
-         result->storage = STORAGE_MAP;
-         result->index = codegen->shary.index;
+         result->storage = ((struct ref_array*)result->ref)->storage;
+         result->index = (result->storage != STORAGE_MAP) ? ((struct ref_array*)result->ref)->storage_index : codegen->shary.index;
          result->status = R_ARRAYINDEX;
          break;
       case REF_FUNCTION:
@@ -1835,8 +1835,8 @@ static void visit_sample_call( struct codegen* codegen, struct result* result,
       switch ( result->ref->type ) {
       case REF_STRUCTURE:
       case REF_ARRAY:
-         result->storage = STORAGE_MAP;
-         result->index = codegen->shary.index;
+         result->storage = ((struct ref_array*)result->ref)->storage;
+         result->index = (result->storage != STORAGE_MAP) ? ((struct ref_array*)result->ref)->storage_index : codegen->shary.index;
          result->status = R_ARRAYINDEX;
          break;
       case REF_FUNCTION:
