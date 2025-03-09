@@ -345,14 +345,13 @@ bool s_instance_of( struct type_info* type, struct type_info* instance ) {
          int instypedesc = s_describe_type( instance );
          int eitherint = ((instypedesc == TYPEDESC_ARRAYREF) || (instypedesc == TYPEDESC_STRUCTREF));
          eitherint ^= ((typedesc == TYPEDESC_ARRAYREF) || (typedesc == TYPEDESC_STRUCTREF));
-         int onlyoneptr = ((type->ref) ? t_is_ptr( type->ref ) : 0) ^ ((instance->ref) ? t_is_ptr( instance->ref ) : 0);
 
          if( eitherint )
             valid = true;
          else
             valid = s_same_type( type, instance ) || ( ((type->spec == SPEC_VOID) || (instance->spec == SPEC_VOID)) &&
                same_ref_struct( (struct ref_struct *)type->ref, (struct ref_struct *)instance->ref ) &&
-               (typedesc != TYPEDESC_FUNCREF) && ! onlyoneptr );
+               (typedesc != TYPEDESC_FUNCREF) );
       }
       break;
    case TYPEDESC_ENUM:
