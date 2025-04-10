@@ -4,7 +4,7 @@ EXE=zt-bcc
 BUILD_DIR=build
 CC=gcc
 INCLUDE=-Isrc -I src/parse
-OPTIONS=-Wall -Werror -Wno-unused -std=c99 -pedantic -Wstrict-aliasing \
+OPTIONS=-Wall -Wno-unused -std=c99 -pedantic -Wstrict-aliasing \
 	-Wstrict-aliasing=2 -Wmissing-field-initializers -D_XOPEN_SOURCE=500 $(INCLUDE)
 VERSION_FILE=$(BUILD_DIR)/version.c
 
