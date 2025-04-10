@@ -169,10 +169,10 @@ void s_decay( struct semantic* semantic, struct type_info* type ) {
 
 bool s_same_type( struct type_info* a, struct type_info* b ) {
    if ( s_is_null( a ) ) {
-      return s_is_ref( b );
+      return s_is_ref( b ) || ( b->spec == SPEC_STR );
    }
    else if ( s_is_null( b ) ) {
-      return s_is_ref( a );
+      return s_is_ref( a ) || ( a->spec == SPEC_STR );
    }
    else {
       switch ( s_describe_type( a ) ) {
@@ -330,6 +330,7 @@ bool s_common_type( struct type_info* a, struct type_info* b,
 bool s_instance_of( struct type_info* type, struct type_info* instance ) {
    bool valid = false;
    int typedesc = s_describe_type( type );
+   int instypedesc = s_describe_type( instance );
    switch ( typedesc ) {
    case TYPEDESC_ARRAYREF:
    case TYPEDESC_STRUCTREF:
@@ -342,7 +343,6 @@ bool s_instance_of( struct type_info* type, struct type_info* instance ) {
             ! instance->ref->nullable );
       }
       else {
-         int instypedesc = s_describe_type( instance );
          int eitherint = ((instypedesc == TYPEDESC_ARRAYREF) || (instypedesc == TYPEDESC_STRUCTREF));
          eitherint ^= ((typedesc == TYPEDESC_ARRAYREF) || (typedesc == TYPEDESC_STRUCTREF));
 
@@ -363,7 +363,7 @@ bool s_instance_of( struct type_info* type, struct type_info* instance ) {
       }
       break;
    case TYPEDESC_PRIMITIVE:
-      valid = s_same_type( type, instance );
+      valid = ( s_same_type( type, instance ) ) || ( ( type->spec == SPEC_STR ) && ( s_is_null( instance ) ) );
       break;
    default:
       break;
