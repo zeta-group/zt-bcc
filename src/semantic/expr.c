@@ -2742,7 +2742,7 @@ static void test_found_object( struct semantic* semantic,
       ( ( struct func* ) object )->imported ) {
       struct func* func = ( struct func* ) object;
       struct ref* ref = find_map_ref( func->ref, NULL );
-      if ( ref ) {
+      if ( ref && ( (struct ref_struct*)ref)->storage == STORAGE_MAP ) {
          s_diag( semantic, DIAG_POS_ERR, test->pos,
             "imported function's return type includes a reference-to-%s type",
             ref->type == REF_STRUCTURE ? "struct" : "array" );
@@ -2757,7 +2757,7 @@ static void test_found_object( struct semantic* semantic,
       struct param* param = func->params;
       while ( param ) {
          struct ref* ref = find_map_ref( param->ref, NULL );
-         if ( ref ) {
+         if ( ref && ( ( (struct ref_struct*)ref)->storage == STORAGE_MAP ) ) {
             s_diag( semantic, DIAG_POS_ERR, test->pos,
                "imported function has parameter whose type includes a "
                "reference-to-%s type",
@@ -3279,9 +3279,10 @@ static void test_lengthof( struct semantic* semantic, struct expr_test* test,
    test_nested_expr( semantic, test, &operand, call->operand );
    int typedesc = s_describe_type( &operand.type );
 
-   if ( (typedesc != TYPEDESC_ARRAYREF) && (typedesc != TYPEDESC_STRUCTREF) ) {
+   if ( (typedesc == TYPEDESC_ENUM) && (typedesc == TYPEDESC_NONE) && (typedesc == TYPEDESC_ARRAY) && (typedesc == TYPEDESC_STRUCT) ) {
+   //if ( (typedesc != TYPEDESC_STRUCTREF) && (typedesc != TYPEDESC_ARRAYREF) ) {
       s_diag( semantic, DIAG_POS_ERR, &call->operand->pos,
-         "operand is not an array or structure" );
+         "operand is of unsupported type for lengthof" );
       s_bail( semantic );
    }
    s_init_type_info_scalar( &result->type, s_spec( semantic, SPEC_INT ) );
@@ -3296,6 +3297,14 @@ static void test_lengthof( struct semantic* semantic, struct expr_test* test,
    // Structure
    if(typedesc == TYPEDESC_STRUCTREF) {
       call->value = operand.type.structure->size;
+      result->value = call->value;
+      result->folded = true;
+      call->operand->folded = true;
+      return;
+   }
+
+   if( ( typedesc == TYPEDESC_PRIMITIVE ) || ( typedesc == TYPEDESC_FUNCREF ) || ( typedesc == TYPEDESC_NULLREF ) ) {
+      call->value = 1;
       result->value = call->value;
       result->folded = true;
       call->operand->folded = true;
