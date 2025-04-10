@@ -129,6 +129,10 @@ internal void[]* malloc (int size)
 		#else
 		Log(s:"\cglibbcs malloc ERROR: heap overflow!");
 		#endif
+
+		#ifdef LIBBCS_FATAL_ALLOC_ERROR
+		>terminate;
+		#endif
 		return null;
 	}
 
@@ -325,6 +329,12 @@ internal void[]? arrResize (void[]? arr, int newSize, int elementSize = 1)
     }
 
     return makeArrPtr((int)newPtr, newSize * elementSize);
+}
+
+// Terminates the running script. Can be called inside functions.
+void exit ()
+{
+	>terminate;
 }
 
 #if 1
