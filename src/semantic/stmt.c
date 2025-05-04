@@ -521,7 +521,7 @@ static void test_heavy_cond( struct semantic* semantic, struct stmt_test* test,
       if ( test->switch_stmt ) {
          s_init_type_info( &test->cond_type, cond->var->ref,
             cond->var->structure, cond->var->enumeration, cond->var->dim,
-            cond->var->spec, cond->var->storage );
+            cond->var->spec, cond->var->storage, cond->var->index );
       }
       if ( ! cond->var->force_local_scope ) {
          s_diag( semantic, DIAG_POS_ERR, &cond->var->object.pos,
@@ -773,7 +773,7 @@ static void test_foreach( struct semantic* semantic, struct stmt_test* test,
       s_test_foreach_var( semantic, &iter.key, key );
       struct type_info type;
       s_init_type_info( &type, key->ref, key->structure, key->enumeration,
-         key->dim, key->spec, key->storage );
+         key->dim, key->spec, key->storage, key->index );
       if ( ! s_instance_of( &type, &iter.key ) ) {
          s_type_mismatch( semantic, "key", &type,
             "collection-key", &iter.key, &key->object.pos );
@@ -784,7 +784,7 @@ static void test_foreach( struct semantic* semantic, struct stmt_test* test,
    s_test_foreach_var( semantic, &iter.value, value );
    struct type_info type;
    s_init_type_info( &type, value->ref, value->structure, value->enumeration,
-      value->dim, value->spec, value->storage );
+      value->dim, value->spec, value->storage, value->index );
    if ( ! s_instance_of( &type, &iter.value ) ) {
       s_type_mismatch( semantic, "value", &type,
          "collection-value", &iter.value, &value->object.pos );
@@ -955,7 +955,7 @@ static void test_return_value( struct semantic* semantic,
    else {
       struct type_info return_type;
       s_init_type_info( &return_type, func->ref, func->structure,
-         func->enumeration, NULL, func->return_spec, STORAGE_LOCAL );
+         func->enumeration, NULL, func->return_spec, STORAGE_LOCAL, 0 );
       if ( ! s_instance_of( &return_type, &expr.type ) ) {
          s_type_mismatch( semantic, "return-value", &expr.type,
             "function-return", &return_type, &stmt->return_value->pos );

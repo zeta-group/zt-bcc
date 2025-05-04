@@ -1161,7 +1161,7 @@ static void test_conditional( struct semantic* semantic,
    struct type_snapshot snapshot;
    s_take_type_snapshot( &result_type, &snapshot );
    s_init_type_info( &result->type, snapshot.ref, snapshot.structure,
-      snapshot.enumeration, NULL, snapshot.spec, STORAGE_LOCAL );
+      snapshot.enumeration, NULL, snapshot.spec, STORAGE_LOCAL, 0 );
    result->complete = true;
    result->usable = ( ! s_is_void( &result_type ) );
    result->data_origin = ( ! s_is_null( &middle.type ) ) ?
@@ -1592,7 +1592,7 @@ static void invalid_cast( struct semantic* semantic, struct cast* cast,
    struct result* operand ) {
    struct type_info cast_type;
    s_init_type_info( &cast_type, NULL, NULL, NULL, NULL, cast->spec,
-      STORAGE_LOCAL );
+      STORAGE_LOCAL, 0 );
    struct str cast_type_s;
    str_init( &cast_type_s );
    s_present_type( &cast_type, &cast_type_s );
@@ -2035,14 +2035,14 @@ static void test_call( struct semantic* semantic, struct expr_test* expr_test,
       if ( operand.func->ref ) {
          s_init_type_info( &result->type, operand.func->ref,
             operand.func->structure, operand.func->enumeration, NULL,
-            operand.func->return_spec, STORAGE_LOCAL );
+            operand.func->return_spec, STORAGE_LOCAL, 0 );
          result->usable = true;
       }
       // Primitive return-value.
       else {
          s_init_type_info( &result->type, NULL, NULL,
             operand.func->enumeration, NULL,
-            s_spec( semantic, operand.func->return_spec ), STORAGE_LOCAL );
+            s_spec( semantic, operand.func->return_spec ), STORAGE_LOCAL, 0 );
          s_decay( semantic, &result->type );
          result->usable = ( operand.func->return_spec != SPEC_VOID );
       }
@@ -2062,13 +2062,13 @@ static void test_call( struct semantic* semantic, struct expr_test* expr_test,
       if ( operand.type.ref->next ) {
          s_init_type_info( &result->type, operand.type.ref->next,
             operand.type.structure, operand.type.enumeration, NULL,
-            operand.type.spec, operand.type.storage );
+            operand.type.spec, operand.type.storage, operand.type.index );
          result->usable = true;
       }
       // Primitive return-value.
       else {
          s_init_type_info( &result->type, NULL, NULL, operand.type.enumeration,
-            NULL, s_spec( semantic, operand.type.spec ), STORAGE_LOCAL );
+            NULL, s_spec( semantic, operand.type.spec ), STORAGE_LOCAL, 0 );
          s_decay( semantic, &result->type );
          result->usable = ( operand.type.spec != SPEC_VOID );
       }
@@ -2330,7 +2330,7 @@ static void test_remaining_arg( struct semantic* semantic,
    if ( param ) {
       struct type_info param_type;
       s_init_type_info( &param_type, param->ref, param->structure,
-         param->enumeration, NULL, param->spec, STORAGE_LOCAL );
+         param->enumeration, NULL, param->spec, STORAGE_LOCAL, 0 );
       if ( ! s_instance_of( &param_type, &arg.type ) ) {
          arg_mismatch( semantic, &expr->pos, &arg.type,
             "parameter", &param_type, "argument", test->num_args + 1 );
@@ -2512,7 +2512,7 @@ static void test_sure( struct semantic* semantic, struct expr_test* test,
          sure->already_safe = true;
       }
       s_init_type_info( &result->type, snapshot.ref, snapshot.structure,
-         snapshot.enumeration, NULL, snapshot.spec, snapshot.storage );
+         snapshot.enumeration, NULL, snapshot.spec, snapshot.storage, snapshot.index );
       result->data_origin = operand.data_origin;
       result->complete = true;
       result->usable = true;
@@ -2912,7 +2912,7 @@ static void select_enumerator( struct semantic* semantic,
    struct expr_test* test, struct result* result,
    struct enumerator* enumerator ) {
    s_init_type_info( &result->type, NULL, NULL, enumerator->enumeration, NULL,
-      s_spec( semantic, enumerator->enumeration->base_type ), STORAGE_LOCAL );
+      s_spec( semantic, enumerator->enumeration->base_type ), STORAGE_LOCAL, 0 );
    s_decay( semantic, &result->type );
    result->value = enumerator->value;
    result->folded = true;
@@ -2928,7 +2928,7 @@ static void select_var( struct semantic* semantic, struct result* result,
    // Array.
    if ( var->dim ) {
       s_init_type_info( &result->type, var->ref, var->structure,
-         var->enumeration, var->dim, var->spec, var->storage );
+         var->enumeration, var->dim, var->spec, var->storage, var->index );
       s_decay( semantic, &result->type );
       result->data_origin.var = var;
       result->dim = var->dim;
@@ -2939,14 +2939,14 @@ static void select_var( struct semantic* semantic, struct result* result,
    // Reference variable.
    else if ( var->ref ) {
       s_init_type_info( &result->type, var->ref, var->structure,
-         var->enumeration, NULL, var->spec, var->storage );
+         var->enumeration, NULL, var->spec, var->storage, var->index );
       result->modifiable = ( ! var->constant );
    }
    // Structure variable.
    else if ( var->structure ) {
       result->data_origin.var = var;
       s_init_type_info( &result->type, NULL, var->structure, NULL, NULL,
-         var->spec, var->storage );
+         var->spec, var->storage, var->index );
       s_decay( semantic, &result->type );
       if ( var->storage == STORAGE_MAP ) {
          result->folded = true;
@@ -2955,7 +2955,7 @@ static void select_var( struct semantic* semantic, struct result* result,
    // Primitive variable.
    else {
       s_init_type_info( &result->type, NULL, NULL, var->enumeration, NULL,
-         s_spec( semantic, var->spec ), var->storage );
+         s_spec( semantic, var->spec ), var->storage, var->index );
       s_decay( semantic, &result->type );
       result->modifiable = ( ! var->constant );
    }
@@ -2970,12 +2970,12 @@ static void select_param( struct semantic* semantic, struct result* result,
    // Reference parameter.
    if ( param->ref ) {
       s_init_type_info( &result->type, param->ref, param->structure,
-         param->enumeration, NULL, param->spec, STORAGE_LOCAL );
+         param->enumeration, NULL, param->spec, STORAGE_LOCAL, 0 );
    }
    // Primitive parameter.
    else {
       s_init_type_info( &result->type, NULL, NULL, param->enumeration, NULL,
-         s_spec( semantic, param->spec ), STORAGE_LOCAL );
+         s_spec( semantic, param->spec ), STORAGE_LOCAL, 0 );
       s_decay( semantic, &result->type );
    }
    result->complete = true;
@@ -2988,6 +2988,7 @@ static void select_structure_member( struct semantic* semantic,
    struct result* lside, struct result* result,
    struct structure_member* member ) {
    int storage = lside->type.storage;
+   int index = lside->type.index;
    if ( lside->type.ref ) {
       struct ref_struct* structure = ( struct ref_struct* ) lside->type.ref;
       storage = structure->storage;
@@ -2995,7 +2996,7 @@ static void select_structure_member( struct semantic* semantic,
    // Array member.
    if ( member->dim ) {
       s_init_type_info( &result->type, member->ref, member->structure,
-         member->enumeration, member->dim, member->spec, storage );
+         member->enumeration, member->dim, member->spec, storage, index );
       s_decay( semantic, &result->type );
       result->dim = member->dim;
       result->data_origin.var = lside->data_origin.var;
@@ -3004,13 +3005,13 @@ static void select_structure_member( struct semantic* semantic,
    // Reference member.
    else if ( member->ref ) {
       s_init_type_info( &result->type, member->ref, member->structure,
-         member->enumeration, NULL, member->spec, storage );
+         member->enumeration, NULL, member->spec, storage, index );
       result->modifiable = true;
    }
    // Structure member.
    else if ( member->structure ) {
       s_init_type_info( &result->type, NULL, member->structure, NULL, NULL,
-         member->spec, storage );
+         member->spec, storage, index );
       s_decay( semantic, &result->type );
       result->data_origin.var = lside->data_origin.var;
       result->data_origin.structure_member = member;
@@ -3018,7 +3019,7 @@ static void select_structure_member( struct semantic* semantic,
    // Primitive member.
    else {
       s_init_type_info( &result->type, NULL, NULL, member->enumeration, NULL,
-         s_spec( semantic, member->spec ), storage );
+         s_spec( semantic, member->spec ), storage, index );
       s_decay( semantic, &result->type );
       result->modifiable = true;
    }

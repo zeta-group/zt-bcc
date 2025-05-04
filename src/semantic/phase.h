@@ -28,6 +28,7 @@ struct type_info {
    struct dim* dim;
    int spec;
    int storage;
+   int index;
    union {
       struct ref ref;
       struct ref_struct structure;
@@ -91,6 +92,7 @@ struct type_snapshot {
    struct dim* dim;
    int spec;
    int storage;
+   int index;
 };
 
 struct type_iter {
@@ -200,7 +202,7 @@ void p_test_inline_asm( struct semantic* semantic, struct stmt_test* test,
    struct inline_asm* inline_asm );
 void s_init_type_info( struct type_info* type, struct ref* ref,
    struct structure* structure, struct enumeration* enumeration,
-   struct dim* dim, int spec, int storage );
+   struct dim* dim, int spec, int storage, int storage_index );
 void s_init_type_info_copy( struct type_info* type,
    struct type_info* other_type );
 void s_init_type_info_array_ref( struct type_info* type, struct ref* ref,
@@ -280,6 +282,6 @@ bool s_same_storageignored_type( struct type_info* a, struct type_info* b );
 void s_init_magic_id( struct magic_id* magic_id, int name );
 bool s_deprecation( struct semantic* semantic, enum deprecation deprecation );
 void s_register_deprecation( struct semantic* semantic,
-   enum deprecation deprecation );;
+   enum deprecation deprecation );
 
 #endif

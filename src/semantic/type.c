@@ -21,13 +21,14 @@ static void set_storage( struct type_info* type, int storage );
 
 void s_init_type_info( struct type_info* type, struct ref* ref,
    struct structure* structure, struct enumeration* enumeration,
-   struct dim* dim, int spec, int storage ) {
+   struct dim* dim, int spec, int storage, int storage_index ) {
    type->ref = ref;
    type->structure = structure;
    type->enumeration = enumeration;
    type->dim = dim;
    type->spec = spec;
    type->storage = storage;
+   type->index = storage_index;
    type->builtin_func = false;
    if ( type->ref && type->ref->implicit ) {
       create_implicit_ref( type );
@@ -72,14 +73,14 @@ void s_init_type_info_copy( struct type_info* type,
    struct type_info* other_type ) {
    s_init_type_info( type, other_type->ref, other_type->structure,
       other_type->enumeration, other_type->dim, other_type->spec,
-      other_type->storage );
+      other_type->storage, other_type->index );
 }
 
 void s_init_type_info_array_ref( struct type_info* type, struct ref* ref,
    struct structure* structure, struct enumeration* enumeration,
    int dim_count, int spec ) {
    s_init_type_info( type, ref, structure, enumeration, NULL, spec,
-      STORAGE_LOCAL );
+      STORAGE_LOCAL, 0 );
    struct ref_array* array = &type->implicit_ref.array;
    array->ref.next = type->ref;
    array->ref.type = REF_ARRAY;
@@ -88,6 +89,7 @@ void s_init_type_info_array_ref( struct type_info* type, struct ref* ref,
    array->ref.implicit = true;
    array->dim_count = dim_count;
    array->storage = STORAGE_MAP;
+   array->storage_index = 0;
    type->ref = &array->ref;
 }
 
@@ -96,7 +98,7 @@ void s_init_type_info_func( struct type_info* type, struct ref* ref,
    struct param* params, int return_spec, int min_param, int max_param,
    bool local ) {
    s_init_type_info( type, ref, structure, enumeration, NULL, return_spec,
-      STORAGE_LOCAL );
+      STORAGE_LOCAL, 0 );
    // NOTE: At this time, I don't see where in the compiler a distinction needs
    // to be made between a function and a reference-to-function. So decay a
    // function into reference-to-function at all times.
@@ -113,16 +115,16 @@ void s_init_type_info_func( struct type_info* type, struct ref* ref,
 }
 
 void s_init_type_info_builtin_func( struct type_info* type ) {
-   s_init_type_info( type, NULL, NULL, NULL, NULL, SPEC_NONE, STORAGE_LOCAL );
+   s_init_type_info( type, NULL, NULL, NULL, NULL, SPEC_NONE, STORAGE_LOCAL, 0 );
    type->builtin_func = true;
 }
 
 void s_init_type_info_scalar( struct type_info* type, int spec ) {
-   s_init_type_info( type, NULL, NULL, NULL, NULL, spec, STORAGE_LOCAL );
+   s_init_type_info( type, NULL, NULL, NULL, NULL, spec, STORAGE_LOCAL, 0 );
 }
 
 void s_init_type_info_null( struct type_info* type ) {
-   s_init_type_info( type, NULL, NULL, NULL, NULL, SPEC_NONE, STORAGE_LOCAL );
+   s_init_type_info( type, NULL, NULL, NULL, NULL, SPEC_NONE, STORAGE_LOCAL, 0 );
    struct ref* ref = &type->implicit_ref.ref;
    ref->next = NULL;
    ref->type = REF_NULL;
@@ -143,6 +145,7 @@ void s_decay( struct semantic* semantic, struct type_info* type ) {
       array->ref.implicit = true;
       array->dim_count = 0;
       array->storage = type->storage;
+      array->storage_index = type->index;
       struct dim* count_dim = type->dim;
       while ( count_dim ) {
          ++array->dim_count;
@@ -159,6 +162,7 @@ void s_decay( struct semantic* semantic, struct type_info* type ) {
       implicit_ref->ref.nullable = false;
       implicit_ref->ref.implicit = true;
       implicit_ref->storage = type->storage;
+      implicit_ref->storage_index = type->index;
       type->ref = &implicit_ref->ref;
    }
    // Enumeration type.
@@ -590,20 +594,20 @@ enum subscript_result s_subscript_array_ref( struct semantic* semantic,
    // Reference element.
    else if ( type->ref->next ) {
       s_init_type_info( element_type, type->ref->next, type->structure,
-         type->enumeration, NULL, type->spec, STORAGE_LOCAL );
+         type->enumeration, NULL, type->spec, STORAGE_LOCAL, 0 );
       return SUBSCRIPTRESULT_REF;
    }
    // Structure element.
    else if ( type->structure ) {
       s_init_type_info( element_type, NULL, type->structure, NULL, NULL,
-         type->spec, array->storage );
+         type->spec, array->storage, array->storage_index );
       s_decay( semantic, element_type );
       return SUBSCRIPTRESULT_STRUCT;
    }
    // Primitive element.
    else {
       s_init_type_info( element_type, NULL, NULL, type->enumeration, NULL,
-         s_spec( semantic, type->spec ), STORAGE_LOCAL );
+         s_spec( semantic, type->spec ), STORAGE_LOCAL, 0 );
       s_decay( semantic, element_type );
       return SUBSCRIPTRESULT_PRIMITIVE;
    }
@@ -630,6 +634,7 @@ void s_take_fine_type_snapshot( struct type_info* type,
    snapshot->dim = type->dim;
    snapshot->spec = type->spec;
    snapshot->storage = type->storage;
+   snapshot->index = type->index;
 }
 
 static struct ref* dup_ref( struct ref* ref ) {

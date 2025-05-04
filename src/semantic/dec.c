@@ -795,7 +795,7 @@ static void merge_ref( struct semantic* semantic, struct spec_test* test,
       if ( alias->dim ) {
          struct type_info type;
          s_init_type_info( &type, alias->ref, alias->structure,
-            alias->enumeration, alias->dim, alias->spec, ((struct ref_struct *)alias->ref)->storage );
+            alias->enumeration, alias->dim, alias->spec, ((struct ref_struct *)alias->ref)->storage, ((struct ref_struct *)alias->ref)->storage_index );
          struct type_snapshot snapshot;
          s_take_type_snapshot( &type, &snapshot );
          if ( ref == test->ref ) {
@@ -1112,7 +1112,7 @@ static bool test_object_initz( struct semantic* semantic, struct var* var ) {
    else {
       struct type_info type;
       s_init_type_info( &type, var->ref, var->structure,
-         var->enumeration, var->dim, var->spec, var->storage );
+         var->enumeration, var->dim, var->spec, var->storage, var->index );
       bool resolved = test_value( semantic, &test, &type,
          ( struct value* ) var->initial );
       if ( ! resolved ) {
@@ -1230,7 +1230,7 @@ static bool test_multi_value_array_child( struct semantic* semantic,
    else {
       struct type_info type;
       s_init_type_info( &type, test->ref, test->structure,
-         test->enumeration, test->dim->next, test->spec, test->var->storage );
+         test->enumeration, test->dim->next, test->spec, test->var->storage, test->var->index );
       return test_value( semantic, test, &type,
          ( struct value* ) initial );
    }
@@ -1306,7 +1306,7 @@ static bool test_multi_value_struct_child( struct semantic* semantic,
    else {
       struct type_info type;
       s_init_type_info( &type, member->ref, member->structure,
-         member->enumeration, member->dim, member->spec, test->var->storage );
+         member->enumeration, member->dim, member->spec, test->var->storage, test->var->index );
       return test_value( semantic, test, &type,
          ( struct value* ) initial );
    }
@@ -1711,12 +1711,12 @@ static bool test_external_var( struct semantic* semantic, struct var* var ) {
    struct type_info type;
    struct type_info other_type;
    s_init_type_info( &type, var->ref, var->structure, var->enumeration,
-      var->dim, var->spec, var->storage );
+      var->dim, var->spec, var->storage, var->index );
    s_init_type_info( &other_type, var_def->ref,
       var_def->structure,
       var_def->enumeration,
       var_def->dim,
-      var_def->spec, var_def->storage );
+      var_def->spec, var_def->storage, var_def->index );
    if ( ! s_same_type( &type, &other_type ) ) {
       s_diag( semantic, DIAG_POS_ERR, &var->object.pos,
          "external variable declaration different from %s",
@@ -1779,11 +1779,11 @@ static void test_worldglobal_var( struct semantic* semantic,
    if ( prev_var ) {
       struct type_info type;
       s_init_type_info( &type, var->ref, var->structure, var->enumeration,
-         var->dim, var->spec, var->storage );
+         var->dim, var->spec, var->storage, var->index );
       struct type_info prev_type;
       s_init_type_info( &prev_type, prev_var->ref, prev_var->structure,
          prev_var->enumeration, prev_var->dim, prev_var->spec,
-         prev_var->storage );
+         prev_var->storage, prev_var->index );
       if ( ! s_same_type( &type, &prev_type ) ) {
          s_diag( semantic, DIAG_POS_ERR, &var->object.pos,
             "%s variable declaration different from previous declaration",
@@ -2117,7 +2117,7 @@ static bool test_param_after_name( struct semantic* semantic,
    if ( test->func && test->func->type != FUNC_USER ) {
       struct type_info type;
       s_init_type_info( &type, param->ref, param->structure,
-         param->enumeration, NULL, param->spec, STORAGE_LOCAL );
+         param->enumeration, NULL, param->spec, STORAGE_LOCAL, 0 );
       if ( ! s_is_value_type( &type ) ) {
          s_diag( semantic, DIAG_POS_ERR, &param->object.pos,
             "parameter of builtin function of non-primitive type" );
@@ -2165,7 +2165,7 @@ static bool test_param_default_value( struct semantic* semantic,
    }
    struct type_info param_type;
    s_init_type_info( &param_type, param->ref, param->structure,
-      param->enumeration, NULL, param->spec, STORAGE_LOCAL );
+      param->enumeration, NULL, param->spec, STORAGE_LOCAL, 0 );
    if ( ! s_instance_of( &param_type, &expr.type ) ) {
       default_value_mismatch( semantic, test->func, param, &param_type,
          &expr.type, &param->default_value->pos );
