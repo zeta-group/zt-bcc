@@ -1,7 +1,7 @@
 strict namespace bcs {
 
-#if 1
-#if __PTR_SPC_TYPE__ == 1
+#ifdef __LINE__
+#ifdef __PTR_SPC_MODULE__
 #ifndef HEAP_SIZE
 #define HEAP_SIZE 65536 // around 250KB
 #endif
@@ -13,7 +13,7 @@ strict namespace bcs {
 #define LIBBCS_ARR_EXTRA 1
 #endif
 
-#define _LIBBCS_REV "libbcs0100-alpha-5"
+#define _LIBBCS_REV "libbcs0100-alpha-6"
 #endif
 
 special -44:__libbcs_CallACS(str;raw,raw,raw,raw):int;
@@ -337,115 +337,7 @@ void exit ()
 	>terminate;
 }
 
-#if 1
-	#define __printf_parms str string, raw i1 = 0, raw i2 = 0, raw i3 = 0, raw i4 = 0, raw i5 = 0, \
-							raw i6 = 0, raw i7 = 0, raw i8 = 0, raw i9 = 0, raw i10 = 0, \
-							raw i11 = 0, raw i12 = 0, raw i13 = 0, raw i14 = 0, \
-							raw i15 = 0, raw i16 = 0
-
-	#define __printf_args string, i1, i2, i3, i4, i5, i6, i7, i8, i9, i10, i11, i12, i13, i14, i15, i16
-#endif
-
-internal raw __printf_params_array[16];
-
-#if 1
-	#define __LIBBCS_PRINTF_IMPL() \
-	__printf_params_array[0] = i1; \
-	__printf_params_array[1] = i2; \
-	__printf_params_array[2] = i3; \
-	__printf_params_array[3] = i4; \
-	__printf_params_array[4] = i5; \
-	__printf_params_array[5] = i6; \
-	__printf_params_array[6] = i7; \
-	__printf_params_array[7] = i8; \
-	__printf_params_array[8] = i9; \
-	__printf_params_array[9] = i10; \
-	__printf_params_array[10] = i11; \
-	__printf_params_array[11] = i12; \
-	__printf_params_array[12] = i13; \
-	__printf_params_array[13] = i14; \
-	__printf_params_array[14] = i15; \
-	__printf_params_array[15] = i16; \
-	int paramNum; \
-	int len = strlen(string); \
-	int ch; \
-	raw tmp; \
-	for(int i = 0; i < len; i++) \
-	{ \
-		ch = string[i]; \
-		if(ch != '%') \
-		{ \
-			>pushscriptvar 20; \
-			>printcharacter; \
-		} \
-		else \
-		{ \
-			i++; \
-			if(string[i] == '%') \
-			{ \
-				>pushnumber 37; \
-				>printcharacter; \
-				continue; \
-			} \
-			tmp = __printf_params_array[paramNum]; \
-			>pushscriptvar 21; \
-			switch(string[i]) \
-			{ \
-			case 'i': \
-			case 'd': >printnumber; break; \
-			case 'c': >printcharacter; break; \
-			case 'f': >printfixed; break; \
-			case 's': >printstring; break; \
-			case 'n': >printname; break; \
-			case 'x': >printhex; break; \
-			case 'b': >printbinary; break; \
-			case 'k': >printbind; break; \
-			case 'l': >printlocalized; break; \
-			default: \
-				Log(s:__FUNCTION__, s:" ERROR: unexpected flag identifier ", c:string[i]); \
-			goto exitloop; \
-			} \
-			paramNum++; \
-		} \
-	} \
-	exitloop:
-#endif
-
-void printf (__printf_parms)
-{
-	str unused;
-	buildmsg(Print())
-		{__LIBBCS_PRINTF_IMPL()}
-}
-
-void printboldf (__printf_parms)
-{
-	str unused;
-	buildmsg(PrintBold())
-		{__LIBBCS_PRINTF_IMPL()}
-}
-
-void logf (__printf_parms)
-{
-	str unused;
-	buildmsg(Log())
-		{__LIBBCS_PRINTF_IMPL()}
-}
-
-str strformat (__printf_parms)
-{
-	str retval;
-
-	buildmsg(retval = StrParam())
-		{__LIBBCS_PRINTF_IMPL()}
-
-	return retval;
-}
-
-#undef __printf_parms
-#undef __printf_args
-
-#if 1
+#ifdef __LINE__
 #define LIBBCS_SIMPLE_CMP(a, b) (((int)a) - ((int)b))
 #define LIBBCS_STRING_CMP(a, b) StrCmp(a, b)
 
