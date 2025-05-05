@@ -453,13 +453,11 @@ static void perform_expan( struct parse* parse, struct macro_expan* expan ) {
 
 static void expand_predef_pspctype( struct parse* parse,
    struct macro_expan* expan ) {
-   char value[ 11 ];
-   int length = snprintf( value, sizeof( value ), "%d", parse->lib->def_storage_type );
    struct token token;
    p_init_token( &token );
    token.type = TK_LIT_DECIMAL;
-   token.text = t_intern_text( parse->task, value, length );
-   token.length = length;
+   token.length = 1;
+   token.text = t_intern_text( parse->task, "1", token.length );
    token.pos = expan->pos;
    output( parse, expan, &token );
 }

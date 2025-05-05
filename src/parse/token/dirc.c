@@ -6,6 +6,8 @@
 
 #define CMDLINEMACRO_TEXT "1"
 
+#define PREDEF_PSPC_TYPE_MACRO(a) "__PTR_SPC_" a "__"
+
 enum dirc {
    DIRC_NONE,
    DIRC_DEFINE,
@@ -96,6 +98,7 @@ static void read_endif( struct parse* parse, struct endif_search* search,
 static void read_pragma( struct parse* parse );
 static void skip_section( struct parse* parse, struct pos* pos );
 static void read_region( struct parse* parse );
+static void update_pspc_type_macros( struct parse* parse );
 
 bool p_read_dirc( struct parse* parse ) {
    enum dirc dirc = identify_dirc( parse );
@@ -859,6 +862,8 @@ static void read_pragma( struct parse* parse ) {
          p_diag( parse, DIAG_POS_ERR, &parse->token->pos, "unexpected %s, expected module, world or global", texto );
          p_bail( parse );
       }
+
+      update_pspc_type_macros( parse );
    }
    else {
       p_diag( parse, DIAG_POS_ERR, &parse->token->pos, "unknown pragma %s", name);
@@ -1019,7 +1024,7 @@ void p_define_predef_macros( struct parse* parse ) {
    append_macro( parse, macro );
    // Macro: __PTR_SPC_TYPE__
    macro = alloc_macro( parse );
-   macro->name = "__PTR_SPC_TYPE__";
+   macro->name = PREDEF_PSPC_TYPE_MACRO("MODULE");
    macro->predef = PREDEFMACRO_PSPCTYPE;
    append_macro( parse, macro );
    // Macro: __PTR_SPC_IDX__
@@ -1027,6 +1032,60 @@ void p_define_predef_macros( struct parse* parse ) {
    macro->name = "__PTR_SPC_IDX__";
    macro->predef = PREDEFMACRO_PSPCIDX;
    append_macro( parse, macro );
+}
+
+static void update_pspc_type_macros( struct parse* parse ) {
+   struct macro* macro;
+
+   if(parse->lib->def_storage_type != STORAGE_MAP)
+   {
+      macro = remove_macro( parse, PREDEF_PSPC_TYPE_MACRO("MODULE") );
+
+      if ( macro )
+         free_macro( parse, macro );
+   }
+
+   if(parse->lib->def_storage_type != STORAGE_WORLD)
+   {
+      macro = remove_macro( parse, PREDEF_PSPC_TYPE_MACRO("WORLD") );
+
+      if ( macro )
+         free_macro( parse, macro );
+   }
+
+   if(parse->lib->def_storage_type != STORAGE_GLOBAL)
+   {
+      macro = remove_macro( parse, PREDEF_PSPC_TYPE_MACRO("GLOBAL") );
+
+      if ( macro )
+         free_macro( parse, macro );
+   }
+
+   switch( parse->lib->def_storage_type )
+   {
+      default: UNREACHABLE();
+      case STORAGE_MAP: macro = p_find_macro( parse, PREDEF_PSPC_TYPE_MACRO("MODULE") ); break;
+      case STORAGE_WORLD: macro = p_find_macro( parse, PREDEF_PSPC_TYPE_MACRO("WORLD") ); break;
+      case STORAGE_GLOBAL: macro = p_find_macro( parse, PREDEF_PSPC_TYPE_MACRO("GLOBAL") ); break;
+   }
+
+   if ( ! macro )
+   {
+      macro = alloc_macro( parse );
+
+      switch( parse->lib->def_storage_type )
+      {
+         default: UNREACHABLE();
+         case STORAGE_MAP: macro->name = PREDEF_PSPC_TYPE_MACRO("MODULE"); break;
+         case STORAGE_WORLD: macro->name = PREDEF_PSPC_TYPE_MACRO("WORLD"); break;
+         case STORAGE_GLOBAL: macro->name = PREDEF_PSPC_TYPE_MACRO("GLOBAL"); break;
+      }
+      macro->predef = PREDEFMACRO_PSPCTYPE;
+      append_macro( parse, macro );
+      return;
+   }
+
+   UNREACHABLE();
 }
 
 void p_define_cmdline_macros( struct parse* parse ) {
