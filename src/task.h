@@ -1382,7 +1382,6 @@ struct include_history_entry* t_alloc_include_history_entry(
 struct include_history_entry* t_decode_include_history_entry(
    struct task* task, int id );
 struct script* t_alloc_script( void );
-struct ns* t_find_ns_of_object( struct task* task, struct object* object );
 bool t_is_ptr( struct ref* ref );
 
 #endif

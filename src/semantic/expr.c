@@ -1895,8 +1895,7 @@ void s_unknown_ns_object( struct semantic* semantic, struct ns* ns,
    else {
       struct str name;
       str_init( &name );
-      t_copy_full_name( ns->name, ( ns->dot_separator ) ? NAMESEPARATOR_DOT :
-         NAMESEPARATOR_COLONCOLON, &name );
+      t_copy_full_name( ns->name, NAMESEPARATOR_INTERNAL, &name );
       s_diag( semantic, DIAG_POS_ERR, pos,
          "`%s` not found in namespace `%s`", object_name,
          name.value );
@@ -3125,9 +3124,7 @@ static void expand_magic_id( struct semantic* semantic,
          str_append( &name, "" );
       }
       else {
-         t_copy_full_name( semantic->ns->name,
-            ( semantic->ns->dot_separator ) ? NAMESEPARATOR_DOT :
-            NAMESEPARATOR_COLONCOLON, &name );
+         t_copy_full_name( semantic->ns->name, NAMESEPARATOR_INTERNAL, &name );
       }
       break;
    default:
