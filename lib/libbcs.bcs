@@ -19,12 +19,12 @@ strict namespace bcs {
 special -44:__libbcs_CallACS(str;raw,raw,raw,raw):int;
 
 #ifndef __LIBBCS_NO_LOCAL_HEAP
-internal raw _Heap[HEAP_SIZE];
+internal raw _Heap[HEAP_SIZE+1];
 
 internal enum
 {
     HEAP_START = (int)_Heap + 1, // We have to waste one index pretty much, if the heap is placed at 0
-    HEAP_END = HEAP_START + HEAP_SIZE
+    HEAP_END = (HEAP_START + HEAP_SIZE) - 2
 };
 #else
 internal enum
@@ -67,12 +67,16 @@ internal void[]* malloc (int size)
     {
         block = head.iter = head.base = HEAP_START;
 
+        Log(s:"lol 1");
+
         #ifdef __LIBBCS_NO_LOCAL_HEAP
         block.size = 0x7FFFFFF8; // FIXME: hardcoded since this isn't really possible to do here without unsigned int arithmetic
         #else
         block.size = HEAP_SIZE;
         #endif
         block.prev = block.next = HEAP_START;
+
+        Log(s:"lol 2");
     }
 
     block = head.iter;
