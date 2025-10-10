@@ -1698,7 +1698,7 @@ special
 -80:ChangeActorPitch(int,fixed;bool):void,
 -81:GetArmorInfo(int):int,
 -82:DropInventory(int,str):void,
--83:PickActor(int,fixed,fixed,fixed,int;int,int,bool):bool,
+-83:PickActor(int,fixed,fixed,fixed,int;int,int,bool):raw,
 -84:IsPointerEqual(int,int;int,int):bool,
 -85:CanRaiseActor(int):bool,
 -86:SetActorTeleFog(int,str,str):void,
