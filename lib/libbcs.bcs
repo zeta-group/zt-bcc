@@ -18,6 +18,18 @@ strict namespace bcs {
 
 special -44:__libbcs_CallACS(str;raw,raw,raw,raw):int;
 
+enum
+{
+	INT_MAX = 2147483647,
+	INT_MIN = -INT_MAX - 1
+};
+
+enum : fixed
+{
+	FIXED_MAX = (fixed)INT_MAX,
+	FIXED_MIN = (fixed)INT_MIN
+};
+
 #ifndef __LIBBCS_NO_LOCAL_HEAP
 internal raw _Heap[HEAP_SIZE+1];
 
