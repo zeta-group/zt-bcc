@@ -400,13 +400,13 @@ void exit ()
 			int[]* arr = a_In; \
 			int mid = left + (right - left) / 2; \
 			/* Check if key is present at mid */ \
-			if(cmpfunc(arr[mid], key) == 0) \
+			if(cmpfunc((raw)arr[mid], (raw)key) == 0) \
 			{ \
 				SetResultValue(mid); \
 				terminate; \
 			} \
 			/* If key greater than arr[mid], ignore left half */ \
-			if(cmpfunc(arr[mid], key) < 0) \
+			if(cmpfunc((raw)arr[mid], (raw)key) < 0) \
 				left = mid + 1; \
 			/* If key is smaller than or equal to arr[mid], */ \
 			/* ignore right half */ \
