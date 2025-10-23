@@ -31,40 +31,33 @@ enum : fixed
 };
 
 #ifndef __LIBBCS_NO_LOCAL_HEAP
-internal raw _Heap[HEAP_SIZE+1];
+internal raw _Heap[HEAP_SIZE];
 
 internal enum
 {
-    HEAP_START = (int)_Heap + 1, // We have to waste one index pretty much, if the heap is placed at 0
-    HEAP_END = (HEAP_START + HEAP_SIZE) - 2
+    HEAP_START = (HEAP_SIZE - 1) + (int)_Heap // Don't touch this.
 };
 #else
 internal enum
 {
-	HEAP_START = 0x80000000,
-	HEAP_END = (0xFFE00000 - 8)
+	HEAP_START = 0xFFFEFFFF
 };
 #endif
 
-internal enum
-{
-	ALLOCBLOCKFLAG_AUTO = 0x00000001, // unused by libbcs, only here for libGDCC compat
-	ALLOCBLOCKFLAG_USED = 0x00000002
-};
-
 internal struct AllocBlock
 {
-    struct AllocBlock* next, prev;
+    struct AllocBlock* next;
     int size;
-    int flags;
+    bool used;
 };
 
 internal struct HeapHead
 {
-    struct AllocBlock* base, iter;
+    bool init;
 #ifdef __LIBBCS_NO_LOCAL_HEAP
-    int allocTime; // only needed for libGDCC compat, which isn't an issue with a local heap
+    int allocTime; // only needed for safe-malloc compat, which isn't an issue with a local heap
 #endif
+    struct AllocBlock* tail, lastFreed;
 };
 
 // Main memory allocation function. Returns a pointer to a buffer of the requested size.
@@ -73,67 +66,89 @@ internal void[]* malloc (int size)
     struct HeapHead* head;
     struct AllocBlock* block;
 
-    head = HEAP_END;
+    head = (HEAP_START - lengthof(head));
 
-    if(!head.iter)
+    if(!head.init)
     {
-        block = head.iter = head.base = HEAP_START;
+        head.init = true;
 
-        Log(s:"lol 1");
+        block = ((int)head - ((size + lengthof(block)) - 1));
 
-        #ifdef __LIBBCS_NO_LOCAL_HEAP
-        block.size = 0x7FFFFFF8; // FIXME: hardcoded since this isn't really possible to do here without unsigned int arithmetic
-        #else
-        block.size = HEAP_SIZE;
-        #endif
-        block.prev = block.next = HEAP_START;
+        block.used = true;
+        block.size = size;
+        block.next = null;
 
-        Log(s:"lol 2");
+        head.tail = (int)block;
+
+        return (int)block + lengthof(block);
     }
 
-    block = head.iter;
+    block = head.lastFreed;
+
+    if( block && (block.size >= size) )
+    {
+        head.lastFreed = null;
+        block.used = true;
+        return (int)block + lengthof(block);
+    }
+
+    block = head.tail;
 
     do
     {
-        if((block.flags & ALLOCBLOCKFLAG_USED) || (size > block.size))
+        if(block.used || (size > block.size))
         {
             block = block.next;
             continue;
         }
 
-        // Split if enough space is leftover.
         if((block.size - size) >= (lengthof(block) + 4))
         {
             struct AllocBlock* splitBlock = (int)block + size + lengthof(block);
 
-            splitBlock.flags = 0;
+            splitBlock.used = false;
             splitBlock.size = block.size - lengthof(block) - size;
             splitBlock.next = block.next;
-            splitBlock.prev = block;
-
-            head.iter = splitBlock;
 
             block.next = splitBlock;
             block.size = size;
         }
 
-        block.flags = ALLOCBLOCKFLAG_USED;
+        block.used = true;
 
         return (int)block + lengthof(block);
 
-    } while(block != head.iter);
+    } while(block);
 
-	#ifndef __LIBBCS_NO_LOCAL_HEAP
-	Log(s:"\cglibbcs malloc ERROR: no more space on the heap! HEAP_SIZE is currently ", i:HEAP_SIZE);
+    // No acceptable blocks found, so let's "grow" the heap.
+    block = ((int)head.tail - (lengthof(block) + size));
+
+    block.used = true;
+    block.size = size;
+    block.next = head.tail;
+
+    head.tail = block;
+
+    #ifndef __LIBBCS_NO_LOCAL_HEAP
+    if((int)block < (int)_Heap)
 	#else
-	Log(s:"\cglibbcs malloc ERROR: no more space on the heap!");
+	// This check is a little weird since we start our heap in the negatives.
+	if( ((int)block > HEAP_START) && ((int)block < 0) )
 	#endif
+    {
+		#ifndef __LIBBCS_NO_LOCAL_HEAP
+		Log(s:"\cglibbcs malloc ERROR: heap overflow! HEAP_SIZE is currently ", i:HEAP_SIZE);
+		#else
+		Log(s:"\cglibbcs malloc ERROR: heap overflow!");
+		#endif
 
-	#ifdef LIBBCS_FATAL_ALLOC_ERROR
-	>terminate;
-	#endif
+		#ifdef LIBBCS_FATAL_ALLOC_ERROR
+		>terminate;
+		#endif
+		return null;
+	}
 
-	return null;
+    return (int)block + lengthof(block);
 }
 
 // Frees the memory so it is usable by future calls to malloc.
@@ -143,55 +158,22 @@ internal void free (void[]* ptr)
         return;
 
     struct HeapHead* head;
-    struct AllocBlock* block, prevBlock, nextBlock;
-    bool prevFree, nextFree;
-
-    head = HEAP_END;
+    struct AllocBlock* block, nextBlock;
 
     block = (int)ptr - lengthof(block);
-
-    prevBlock = block.prev;
     nextBlock = block.next;
 
-    prevFree = (prevBlock != head.base) && !(prevBlock.flags & ALLOCBLOCKFLAG_USED);
-    nextFree = (nextBlock != head.base) && !(nextBlock.flags & ALLOCBLOCKFLAG_USED);
-
-    if(prevFree)
+    // Should merge blocks here.
+    if( (nextBlock) && (!nextBlock.used) )
     {
-		if(nextFree)
-		{
-			if(head.iter == block || head.iter == nextBlock)
-				head.iter = prevBlock;
-
-			prevBlock.next = nextBlock.next;
-			nextBlock.next.prev = prevBlock;
-
-			prevBlock.size += block.size + nextBlock.size + (lengthof(block) * 2);
-		}
-		else
-		{
-			if(head.iter == block)
-				head.iter = prevBlock;
-
-			prevBlock.next = nextBlock;
-			nextBlock.prev = prevBlock;
-
-			prevBlock.size += block.size + lengthof(block);
-		}
-    }
-    else if(nextFree)
-    {
-		block.size += nextBlock.size + lengthof(block);
+        block.size += nextBlock.size + lengthof(block);
         block.next = nextBlock.next;
-        nextBlock.next.prev = block;
-        block.flags = 0;
+    }
 
-        head.iter = block.prev;
-    }
-    else
-    {
-		block.flags = 0;
-    }
+    block.used = false;
+
+    head = (HEAP_START - lengthof(head));
+    head.lastFreed = block;
 }
 
 internal void memmove (void[]* dstIn, void[]* srcIn, int size)
@@ -279,23 +261,16 @@ void allocDump ()
     struct HeapHead* head;
     struct AllocBlock* block;
 
-    head = HEAP_END;
-    block = head.base;
+    head = (HEAP_START - lengthof(head));
+    block = head.tail;
 
     Print(s:"=libbcs allocDump=");
-    Print(s:"Heap base: ", x:(int)head.base);
-    Print(s:"Heap iter: ", x:(int)head.iter);
-    #ifdef __LIBBCS_NO_LOCAL_HEAP
-		Print(s:"Heap alloc time:", x:(int)head.allocTime);
-	#endif
-
-	do
+	while(block)
 	{
-        Print(x:(int)block, s:" - next: ", x:(int)block.next, s:", prev: ", x:(int)block.prev, s:", size: ", x:block.size, s:", used: ", i:((int)block.flags & ALLOCBLOCKFLAG_USED) != 0, s:", autBlock: ", i:((int)block.flags & ALLOCBLOCKFLAG_AUTO) != 0);
+        Print(i:(int)block, s:" - next: ", i:(int)block.next, s:", size: ", x:block.size, s:", used: ", i:(int)block.used & (1<<0), s:", autBlock: ", i:(int)block.used & (1<<2));
 
         block = block.next;
 	}
-	while(block != head.base);
 }
 
 // BCC array references are fat pointers:
