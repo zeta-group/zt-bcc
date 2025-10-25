@@ -10,7 +10,7 @@ strict namespace bcs {
 #endif
 
 #ifndef LIBBCS_ARR_EXTRA
-#define LIBBCS_ARR_EXTRA 1
+#define LIBBCS_ARR_EXTRA 8
 #endif
 
 #define _LIBBCS_REV "libbcs0100-alpha-7"
