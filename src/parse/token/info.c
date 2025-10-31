@@ -180,6 +180,7 @@ static struct token_info g_table[] = {
    ENTRY( "lengthof", TKF_KEYWORD ),
    ENTRY( "internal", TKF_KEYWORD ),
    ENTRY( "module", TKF_KEYWORD ),
+   ENTRY( "char", TKF_KEYWORD ),
 };
 #undef ENTRY
 

@@ -188,6 +188,7 @@ bool p_is_dec( struct parse* parse ) {
       case TK_FIXED:
       case TK_BOOL:
       case TK_STR:
+      case TK_CHAR:
          // Make sure it is not a conversion call.
          return ( p_peek( parse ) != TK_PAREN_L );
       case TK_RAW:
@@ -409,6 +410,7 @@ static void read_enum_base_type( struct parse* parse,
    if ( parse->tk == TK_COLON ) {
       p_read_tk( parse );
       switch ( parse->tk ) {
+      case TK_CHAR:
       case TK_INT:
          p_read_tk( parse );
          break;
@@ -776,6 +778,7 @@ static bool is_spec( struct parse* parse ) {
    switch ( parse->tk ) {
    case TK_RAW:
    case TK_INT:
+   case TK_CHAR:
    case TK_FIXED:
    case TK_BOOL:
    case TK_STR:
@@ -803,6 +806,7 @@ static void read_spec( struct parse* parse, struct spec_reading* spec ) {
       p_read_tk( parse );
       break;
    case TK_INT:
+   case TK_CHAR:
       spec->type = SPEC_INT;
       p_read_tk( parse );
       break;
@@ -1693,6 +1697,7 @@ bool p_is_paren_type( struct parse* parse ) {
       case TK_FUNCTION:
          return true;
       case TK_INT:
+      case TK_CHAR:
       case TK_FIXED:
       case TK_BOOL:
       case TK_STR:
@@ -1718,6 +1723,7 @@ bool p_is_paren_type( struct parse* parse ) {
                case TK_PAREN_R:
                   return true;
                case TK_INT:
+               case TK_CHAR:
                case TK_FIXED:
                case TK_BOOL:
                case TK_STR:
@@ -2187,6 +2193,7 @@ static void read_script_param( struct parse* parse,
       param->spec = SPEC_RAW;
       p_read_tk( parse );
       break;
+   case TK_CHAR:
    case TK_INT:
       param->spec = SPEC_INT;
       p_read_tk( parse );
@@ -2562,6 +2569,7 @@ static void read_special_param( struct parse* parse,
    int spec = SPEC_RAW;
    switch ( parse->tk ) {
    case TK_RAW: break;
+   case TK_CHAR:
    case TK_INT: spec = SPEC_INT; break;
    case TK_FIXED: spec = SPEC_FIXED; break;
    case TK_BOOL: spec = SPEC_BOOL; break;
@@ -2596,6 +2604,7 @@ static void read_special_return_type( struct parse* parse,
    p_read_tk( parse );
    switch ( parse->tk ) {
    case TK_RAW: reading->return_spec = SPEC_RAW; break;
+   case TK_CHAR:
    case TK_INT: reading->return_spec = SPEC_INT; break;
    case TK_FIXED: reading->return_spec = SPEC_FIXED; break;
    case TK_BOOL: reading->return_spec = SPEC_BOOL; break;

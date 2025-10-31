@@ -98,6 +98,7 @@ static void read_token( struct parse* parse ) {
          { "break", TK_BREAK },
          { "buildmsg", TK_BUILDMSG },
          { "case", TK_CASE },
+         { "char", TK_CHAR },
          { "const", TK_CONST },
          { "continue", TK_CONTINUE },
          { "createtranslation", TK_PALTRANS },

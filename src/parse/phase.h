@@ -181,6 +181,7 @@ enum tk {
    TK_LENGTHOF,
    TK_INTERNAL,
    TK_MODULE,
+   TK_CHAR,
 
    TK_TOTAL,
 

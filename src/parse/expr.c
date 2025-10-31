@@ -508,6 +508,7 @@ static void read_primary( struct parse* parse, struct expr_reading* reading ) {
       read_lengthof( parse, reading );
       break;
    case TK_INT:
+   case TK_CHAR:
    case TK_FIXED:
    case TK_BOOL:
    case TK_STR:
@@ -789,7 +790,15 @@ static void read_conversion( struct parse* parse,
       p_read_tk( parse );
       break;
    default:
-      p_test_tk( parse, TK_INT );
+      if( (parse->tk != TK_INT) && (parse->tk != TK_CHAR) )
+      {
+         p_diag( parse, DIAG_POS_ERR | DIAG_SYNTAX, &parse->tk_pos,
+                 "unexpected %s", p_present_token_temp( parse, parse->tk ) );
+         p_diag( parse, DIAG_POS, &parse->tk_pos,
+                 "expecting %s or `char` here", p_present_token_temp( parse, TK_INT ) );
+         p_bail( parse );
+      }
+
       p_read_tk( parse );
    }
    p_test_tk( parse, TK_PAREN_L );
