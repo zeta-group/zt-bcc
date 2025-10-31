@@ -1337,6 +1337,12 @@ enum {
    POBJ_MOVE_PERPETUAL = 0x32
 };
 
+enum {
+   CSF_INAIR,
+   CSF_SOLIDGROUND,
+   CSF_SOLIDACTORS
+};
+
 // Functions
 // --------------------------------------------------------------------------
 
@@ -1798,6 +1804,20 @@ special
 -184:GetSkinProperty(raw, raw; raw, raw):raw,
 -185:IsPlayerContestingControlPoint(raw, raw):raw,
 
+// Q-Zandronum
+-141:SetActionScript(int,int,str):void,
+-142:SetPredictableValue(int,int,int):void,
+-143:GetPredictableValue(int,int):int,
+-144:SetEffectActor(int,int,str):void,
+-149:CheckSolidFooting(int,int):int,
+-150:GetNetworkState():int,
+-153:SetNetworkReplicationFlags(int):void,
+-154:UnlaggedReconcile(int):int,
+-155:UnlaggedRestore(int):void,
+-156:SyncPlayerNetwork(int):void,
+-157:TagActive(int):bool,
+-158:InCampaign():bool,
+-168:VelIntercept(int, int, fixed; bool):int,
 
 // ZDoom/GZDoom.
 -200:CheckClass(str):bool,
