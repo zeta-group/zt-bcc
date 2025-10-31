@@ -881,15 +881,16 @@ static void test_script_jump( struct semantic* semantic,
 
 static void test_return( struct semantic* semantic, struct stmt_test* test,
    struct return_stmt* stmt ) {
-   if ( ! semantic->func_test->func ) {
+   if ( (! semantic->func_test->func) && (! semantic->func_test->script) ) {
       s_diag( semantic, DIAG_POS_ERR, &stmt->pos,
-         "return statement outside function" );
+         "return statement outside function or script" );
       s_bail( semantic );
    }
+   stmt->is_func = !!semantic->func_test->func;
    if ( stmt->return_value ) {
       test_return_value( semantic, test, stmt );
    }
-   else {
+   else if ( stmt->is_func ) {
       if ( semantic->func_test->func->return_spec == SPEC_AUTO ) {
          semantic->func_test->func->return_spec = SPEC_VOID;
       }
@@ -911,11 +912,25 @@ static void test_return( struct semantic* semantic, struct stmt_test* test,
 
 static void test_return_value( struct semantic* semantic,
    struct stmt_test* test, struct return_stmt* stmt ) {
-   struct func* func = semantic->func_test->func;
+   struct func* func;
+   struct func temp_func;
    struct expr_test expr;
    s_init_expr_test( &expr, true, false );
    expr.buildmsg = stmt->buildmsg;
    s_test_expr( semantic, &expr, stmt->return_value );
+   if ( stmt->is_func )
+   {
+      func = semantic->func_test->func;
+   }
+   else
+   {
+      // [TDRR] Init empty func struct so the rest of the function continues as normal.
+      func = &temp_func;
+      func->return_spec = SPEC_RAW;
+      func->enumeration = NULL;
+      func->structure = NULL;
+      func->ref = NULL;
+   }
    if ( stmt->buildmsg ) {
       test_buildmsg_block( semantic, test, stmt->buildmsg );
    }
@@ -956,10 +971,20 @@ static void test_return_value( struct semantic* semantic,
       struct type_info return_type;
       s_init_type_info( &return_type, func->ref, func->structure,
          func->enumeration, NULL, func->return_spec, STORAGE_LOCAL, 0 );
-      if ( ! s_instance_of( &return_type, &expr.type ) ) {
-         s_type_mismatch( semantic, "return-value", &expr.type,
-            "function-return", &return_type, &stmt->return_value->pos );
-         s_bail( semantic );
+      if( stmt->is_func )
+      {
+         if ( ! s_instance_of( &return_type, &expr.type ) ) {
+            s_type_mismatch( semantic, "return-value", &expr.type,
+                             "function-return", &return_type, &stmt->return_value->pos );
+            s_bail( semantic );
+         }
+      }
+      else {
+         if( expr.type.ref || ! s_compatible_raw_spec( expr.type.spec ) ) {
+            s_type_mismatch( semantic, "return-value", &expr.type,
+                             "script-return", &return_type, &stmt->return_value->pos );
+            s_bail( semantic );
+         }
       }
    }
    if ( expr.func && expr.func->type == FUNC_USER ) {

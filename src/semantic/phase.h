@@ -283,5 +283,6 @@ void s_init_magic_id( struct magic_id* magic_id, int name );
 bool s_deprecation( struct semantic* semantic, enum deprecation deprecation );
 void s_register_deprecation( struct semantic* semantic,
    enum deprecation deprecation );
+bool s_compatible_raw_spec( int spec );
 
 #endif

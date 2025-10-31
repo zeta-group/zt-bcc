@@ -591,6 +591,7 @@ static void read_return( struct parse* parse, struct stmt_reading* reading ) {
    stmt->next = NULL;
    stmt->epilogue_jump = NULL;
    stmt->pos = parse->tk_pos;
+   stmt->is_func = false;
    p_read_tk( parse );
    if ( parse->tk == TK_BUILDMSG ) {
       stmt->buildmsg = read_buildmsg( parse, reading );

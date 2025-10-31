@@ -586,6 +586,7 @@ struct return_stmt {
    struct return_stmt* next;
    struct c_jump* epilogue_jump;
    struct pos pos;
+   bool is_func;
 };
 
 struct block {

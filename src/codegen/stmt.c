@@ -1058,10 +1058,13 @@ static void set_jumps_point( struct codegen* codegen, struct jump* jump,
 static void visit_return( struct codegen* codegen, struct return_stmt* stmt ) {
    // Push return value.
    if ( stmt->return_value ) {
-      c_push_initz_expr( codegen, codegen->func->func->ref,
+      c_push_initz_expr( codegen, stmt->is_func ? codegen->func->func->ref : NULL,
          stmt->return_value );
       if ( stmt->buildmsg ) {
          write_msgbuild_block( codegen, stmt->buildmsg );
+      }
+      if( ! stmt->is_func && ! codegen->func->nested_func ) {
+         c_pcd( codegen, PCD_SETRESULTVALUE );
       }
    }
    // Exit.
@@ -1071,7 +1074,10 @@ static void visit_return( struct codegen* codegen, struct return_stmt* stmt ) {
       stmt->epilogue_jump = epilogue_jump;
    }
    else {
-      if ( stmt->return_value ) {
+      if ( ! stmt->is_func ) {
+         c_pcd( codegen, PCD_TERMINATE );
+      }
+      else if ( stmt->return_value ) {
          c_pcd( codegen, PCD_RETURNVAL );
       }
       else {

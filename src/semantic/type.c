@@ -8,7 +8,6 @@ static bool same_ref_struct( struct ref_struct* a, struct ref_struct* b );
 static bool same_ref_array( struct ref_array* a, struct ref_array* b );
 static bool same_ref_func( struct ref_func* a, struct ref_func* b );
 static bool same_spec_primitive( int a, int b );
-static bool compatible_raw_spec( int spec );
 static bool same_dim( struct dim* a, struct dim* b );
 static void present_extended_spec( struct structure* structure,
    struct enumeration* enumeration, int spec, struct str* string );
@@ -252,17 +251,17 @@ static bool same_ref_func( struct ref_func* a, struct ref_func* b ) {
 
 static bool same_spec_primitive( int a, int b ) {
    if ( a == SPEC_RAW ) {
-      return compatible_raw_spec( b );
+      return s_compatible_raw_spec( b );
    }
    else if ( b == SPEC_RAW ) {
-      return compatible_raw_spec( a );
+      return s_compatible_raw_spec( a );
    }
    else {
       return ( a == b );
    }
 }
 
-static bool compatible_raw_spec( int spec ) {
+bool s_compatible_raw_spec( int spec ) {
    switch ( spec ) {
    case SPEC_RAW:
    case SPEC_INT:
