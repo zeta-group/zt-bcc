@@ -881,11 +881,6 @@ static void test_script_jump( struct semantic* semantic,
 
 static void test_return( struct semantic* semantic, struct stmt_test* test,
    struct return_stmt* stmt ) {
-   if ( (! semantic->func_test->func) && (! semantic->func_test->script) ) {
-      s_diag( semantic, DIAG_POS_ERR, &stmt->pos,
-         "return statement outside function or script" );
-      s_bail( semantic );
-   }
    stmt->is_func = !!semantic->func_test->func;
    if ( stmt->return_value ) {
       test_return_value( semantic, test, stmt );
