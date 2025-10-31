@@ -60,8 +60,6 @@ internal struct HeapHead
     struct AllocBlock* tail, lastFreed;
 };
 
-typedef int char;
-
 // Main memory allocation function. Returns a pointer to a buffer of the requested size.
 internal void[]* malloc (int size)
 {
