@@ -16,6 +16,12 @@ strict namespace bcs {
 #define _LIBBCS_REV "libbcs0100-alpha-7"
 #endif
 
+#ifdef __LIBBCS_NO_LOCAL_HEAP
+#define __LIBBCS_PTR_VIS
+#else
+#define __LIBBCS_PTR_VIS internal
+#endif
+
 special -44:__libbcs_CallACS(str;raw,raw,raw,raw):int;
 
 enum
@@ -61,7 +67,7 @@ internal struct HeapHead
 };
 
 // Main memory allocation function. Returns a pointer to a buffer of the requested size.
-internal void[]* malloc (int size)
+__LIBBCS_PTR_VIS void[]* malloc (int size)
 {
     struct HeapHead* head;
     struct AllocBlock* block;
@@ -152,7 +158,7 @@ internal void[]* malloc (int size)
 }
 
 // Frees the memory so it is usable by future calls to malloc.
-internal void free (void[]* ptr)
+__LIBBCS_PTR_VIS void free (void[]* ptr)
 {
     if(!ptr)
         return;
@@ -176,7 +182,7 @@ internal void free (void[]* ptr)
     head.lastFreed = block;
 }
 
-internal void memmove (void[]* dstIn, void[]* srcIn, int size)
+__LIBBCS_PTR_VIS void memmove (void[]* dstIn, void[]* srcIn, int size)
 {
 	int[]* dst = dstIn;
 	int[]* src = srcIn;
@@ -196,7 +202,7 @@ internal void memmove (void[]* dstIn, void[]* srcIn, int size)
 	}
 }
 
-internal int memcmp (void[]* ptr1in, void[]* ptr2in, int size)
+__LIBBCS_PTR_VIS int memcmp (void[]* ptr1in, void[]* ptr2in, int size)
 {
 	int[]* ptr1 = ptr1in;
 	int[]* ptr2 = ptr2in;
@@ -211,7 +217,7 @@ internal int memcmp (void[]* ptr1in, void[]* ptr2in, int size)
 }
 
 // Creates a new bigger buffer if needed, copying the contents of the original passed in.
-internal void[]* realloc (void[]* oldPtr, int size)
+__LIBBCS_PTR_VIS void[]* realloc (void[]* oldPtr, int size)
 {
     if(!oldPtr)
         return malloc(size);
@@ -246,7 +252,7 @@ Script _LIBBCS_REV "-alloca" (int ptr)
 	}
 }
 
-internal void[]* alloca (int size)
+__LIBBCS_PTR_VIS void[]* alloca (int size)
 {
 	void[]* ptr = malloc(size);
 
@@ -309,7 +315,7 @@ internal void printArrPtr (void[]? arr)
 	}
 }
 
-internal void[]? arrNew (int len, int elementSize = 1)
+__LIBBCS_PTR_VIS void[]? arrNew (int len, int elementSize = 1)
 {
     int ptr = (int)malloc((len + 1 + LIBBCS_ARR_EXTRA) * elementSize);
 
@@ -319,12 +325,12 @@ internal void[]? arrNew (int len, int elementSize = 1)
     return makeArrPtr(ptr, len);
 }
 
-internal void arrDelete (void[]? arr)
+__LIBBCS_PTR_VIS void arrDelete (void[]? arr)
 {
     free((int)arr - 1);
 }
 
-internal void[]? arrResize (void[]? arr, int newSize, int elementSize = 1)
+__LIBBCS_PTR_VIS void[]? arrResize (void[]? arr, int newSize, int elementSize = 1)
 {
 	struct AllocBlock* arrBlock;
 	arrBlock = (int)arr - lengthof(arrBlock);
