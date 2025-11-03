@@ -758,7 +758,7 @@ static void test_foreach( struct semantic* semantic, struct stmt_test* test,
       if ( expr.var ) {
          if ( ! expr.var->hidden ) {
             s_diag( semantic, DIAG_POS_ERR, &stmt->collection->pos,
-               "non-private collection (references only work with private map "
+               "non-internal collection (module references only work with internal map "
                "variables)" );
             s_bail( semantic );
          }
@@ -995,7 +995,7 @@ static void test_return_value( struct semantic* semantic,
       if ( expr.var ) {
          if ( ! expr.var->hidden ) {
             s_diag( semantic, DIAG_POS_ERR, &stmt->return_value->pos,
-               "non-private return-value (references only work with private map "
+               "non-internal return-value (module references only work with internal map "
                "variables)" );
             s_bail( semantic );
          }

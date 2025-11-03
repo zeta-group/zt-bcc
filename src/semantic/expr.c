@@ -974,7 +974,7 @@ static void test_assign( struct semantic* semantic, struct expr_test* test,
       if ( rside.data_origin.var ) {
          if ( ! rside.data_origin.var->hidden ) {
             s_diag( semantic, DIAG_POS_ERR, &assign->pos,
-               "non-private right operand (references only work with private "
+               "non-internal right operand (module references only work with internal "
                "map variables)" );
             s_bail( semantic );
          }
@@ -1173,7 +1173,7 @@ static void test_conditional( struct semantic* semantic,
       if ( middle.data_origin.var ) {
          if ( ! middle.data_origin.var->hidden ) {
             s_diag( semantic, DIAG_POS_ERR, &cond->pos,
-               "non-private %s (references only work with private "
+               "non-internal %s (module references only work with internal "
                "map variables)", cond->middle ? "middle operand" :
                "left operand" );
             s_bail( semantic );
@@ -1186,7 +1186,7 @@ static void test_conditional( struct semantic* semantic,
       if ( right.data_origin.var ) {
          if ( ! right.data_origin.var->hidden ) {
             s_diag( semantic, DIAG_POS_ERR, &cond->pos,
-               "non-private right operand (references only work with private "
+               "non-internal right operand (module references only work with internal "
                "map variables)" );
             s_bail( semantic );
          }
@@ -2350,7 +2350,7 @@ static void test_remaining_arg( struct semantic* semantic,
       if ( arg.var ) {
          if ( ! arg.var->hidden ) {
             s_diag( semantic, DIAG_POS_ERR, &expr->pos,
-               "non-private argument (references only work with private "
+               "non-internal argument (module references only work with internal "
                "map variables)" );
             s_bail( semantic );
          }

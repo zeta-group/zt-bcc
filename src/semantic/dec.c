@@ -449,7 +449,7 @@ static bool test_member_spec( struct semantic* semantic,
    if ( ! semantic->in_localscope && ! structure->hidden &&
       ! test.public_spec ) {
       s_diag( semantic, DIAG_POS_ERR, &member->object.pos,
-         "member of non-private struct has a private type" );
+         "member of non-internal struct has an internal type" );
       s_bail( semantic );
    }
    if ( member->spec == SPEC_STRUCT ) {
@@ -533,7 +533,7 @@ static bool test_typedef_spec( struct semantic* semantic,
    // Public type alias must have a public type.
    if ( ! semantic->in_localscope && ! alias->hidden && ! test.public_spec ) {
       s_diag( semantic, DIAG_POS_ERR, &alias->object.pos,
-         "non-private type alias has a private type" );
+         "non-internal type alias has an internal type" );
       s_bail( semantic );
    }
    if ( alias->spec == SPEC_STRUCT ) {
@@ -615,7 +615,7 @@ static bool test_var_spec( struct semantic* semantic, struct var* var ) {
    // Public (visible to a user of a library) variable must have a public type.
    if ( ! semantic->in_localscope && ! var->hidden && ! test.public_spec ) {
       s_diag( semantic, DIAG_POS_ERR, &var->object.pos,
-         "non-private variable has a private type" );
+         "non-internal variable has an internal type" );
       s_bail( semantic );
    }
    if ( var->spec == SPEC_STRUCT ) {
@@ -1434,7 +1434,7 @@ static bool test_scalar_initz( struct semantic* semantic,
       if ( expr.var ) {
          if ( (! expr.var->hidden) && ( expr.var->ref && (((struct ref_array*)expr.var->ref)->storage == STORAGE_MAP) ) ) {
             s_diag( semantic, DIAG_POS_ERR, &value->expr->pos,
-               "non-private initializer (module references only work with private "
+               "non-internal initializer (module references only work with internal "
                "map variables)" );
             s_bail( semantic );
          }
@@ -1673,7 +1673,7 @@ static bool test_var_finish( struct semantic* semantic, struct var* var ) {
    // Only map variables can be private.
    if ( var->hidden && var->storage != STORAGE_MAP ) {
       s_diag( semantic, DIAG_POS_ERR, &var->object.pos,
-         "%s variable declared private", t_get_storage_name( var->storage ) );
+         "%s variable declared internal", t_get_storage_name( var->storage ) );
       s_bail( semantic );
    }
    if ( var->storage == STORAGE_WORLD || var->storage == STORAGE_GLOBAL ) {
@@ -1728,9 +1728,9 @@ static bool test_external_var( struct semantic* semantic, struct var* var ) {
    }
    if ( ! other_var->external && other_var->hidden ) {
       s_diag( semantic, DIAG_POS_ERR, &var->object.pos,
-         "external variable declaration for a private variable" );
+         "external variable declaration for an internal variable" );
       s_diag( semantic, DIAG_POS, &other_var->object.pos,
-         "private variable found here" );
+         "internal variable found here" );
       s_bail( semantic );
    }
    return true;
@@ -1957,7 +1957,7 @@ static bool test_func_return_spec( struct semantic* semantic,
    // Public function must have a public return type.
    if ( ! semantic->in_localscope && ! func->hidden && ! test.public_spec ) {
       s_diag( semantic, DIAG_POS_ERR, &func->object.pos,
-         "non-private function has a private return type" );
+         "non-internal function has an internal return type" );
       s_bail( semantic );
    }
    if ( func->return_spec == SPEC_STRUCT ) {
@@ -2083,7 +2083,7 @@ static bool test_param_spec( struct semantic* semantic,
    // For a public function, every parameter type must be public.
    if ( test->need_public_spec && ! spec_test.public_spec ) {
       s_diag( semantic, DIAG_POS_ERR, &param->object.pos,
-         "parameter of non-private function has a private type" );
+         "parameter of non-internal function has an internal type" );
       s_bail( semantic );
    }
    if ( param->spec == SPEC_STRUCT ) {
@@ -2176,8 +2176,8 @@ static bool test_param_default_value( struct semantic* semantic,
       if ( expr.var ) {
          if ( ! expr.var->hidden ) {
             s_diag( semantic, DIAG_POS_ERR, &param->default_value->pos,
-               "non-private default argument (references only work with "
-               "private map variables)" );
+               "non-internal default argument (module references only work with "
+               "internal map variables)" );
             s_bail( semantic );
          }
          expr.var->addr_taken = true;
@@ -2262,9 +2262,9 @@ static bool test_external_func( struct semantic* semantic,
    }
    if ( ! other_func->external && other_func->hidden ) {
       s_diag( semantic, DIAG_POS_ERR, &func->object.pos,
-         "external function declaration for a private function" );
+         "external function declaration for a internal function" );
       s_diag( semantic, DIAG_POS, &other_func->object.pos,
-         "private function found here" );
+         "internal function found here" );
       s_bail( semantic );
    }
    func->imported = other_func->external;

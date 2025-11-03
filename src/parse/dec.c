@@ -313,7 +313,7 @@ static void read_dec( struct parse* parse, struct dec* dec ) {
    // Private visibility applies only to map objects.
    if ( dec->private_visibility && dec->area != DEC_TOP ) {
       p_diag( parse, DIAG_POS_ERR, &dec->pos,
-         "only namespace-level objects can be declared private" );
+         "only namespace-level objects can be declared internal" );
       p_bail( parse );
    }
 }
