@@ -182,6 +182,7 @@ enum tk {
    TK_INTERNAL,
    TK_MODULE,
    TK_CHAR,
+   TK_BUSY,
 
    TK_TOTAL,
 

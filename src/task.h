@@ -1031,7 +1031,8 @@ struct script {
    enum {
       SCRIPT_FLAG_NONE = 0x0,
       SCRIPT_FLAG_NET = 0x1,
-      SCRIPT_FLAG_CLIENTSIDE = 0x2
+      SCRIPT_FLAG_CLIENTSIDE = 0x2,
+      SCRIPT_FLAG_BUSY = 0x4
    } flags;
    struct param* params;
    struct block* body;

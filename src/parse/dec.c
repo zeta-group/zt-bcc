@@ -2349,16 +2349,33 @@ static const char* get_script_article( int type ) {
 static void read_script_flag( struct parse* parse,
    struct script_reading* reading ) {
    while ( parse->tk == TK_ID ) {
-      int flag = SCRIPT_FLAG_NET;
-      // In BCS, script flags are context-sensitive keywords.
-      if ( strcmp( parse->tk_text, "net" ) != 0 ) {
-         if ( strcmp( parse->tk_text, "clientside" ) == 0 ) {
-            flag = SCRIPT_FLAG_CLIENTSIDE;
-         }
-         else {
-            break;
+      static const struct {
+         const char* text;
+         enum tk tk;
+         int flag;
+      } table[] = {
+         { "net", TK_NET, SCRIPT_FLAG_NET },
+         { "clientside", TK_CLIENTSIDE, SCRIPT_FLAG_CLIENTSIDE },
+         { "busy", TK_BUSY, SCRIPT_FLAG_BUSY },
+      };
+
+      int flag = 0;
+
+      for(int i = 0; i < (sizeof(table) / sizeof(table[0])); i++)
+      {
+         if(strcmp( parse->tk_text, table[ i ].text ) == 0)
+         {
+            flag = table[ i ].flag;
          }
       }
+
+      if(!flag)
+      {
+         p_diag( parse, DIAG_POS_ERR, &parse->tk_pos,
+                 "unknown script-flag %s", parse->tk_text );
+         p_bail( parse );
+      }
+
       if ( ! ( reading->flags & flag ) ) {
          reading->flags |= flag;
          p_read_tk( parse );
