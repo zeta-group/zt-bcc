@@ -1343,6 +1343,14 @@ enum {
    CSF_SOLIDACTORS
 };
 
+enum {
+   PLAYERSTATUS_CHATTING = 0x1,
+   PLAYERSTATUS_TALKING = 0x2,
+   PLAYERSTATUS_INCONSOLE = 0x3,
+   PLAYERSTATUS_INMENU = 0x4,
+   PLAYERSTATUS_LAGGING = 0x5
+};
+
 // Functions
 // --------------------------------------------------------------------------
 
