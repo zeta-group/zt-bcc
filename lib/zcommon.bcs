@@ -1785,8 +1785,8 @@ special
 // built-in to ACC. So 162-165 are used up function indices.
 -166:LumpGetInfo(int, int):raw,
 -167:LumpClose(int):void,
--168:AddBot(str, int):int,
--169:RemoveBot(str):int,
+-168:AddBot(;str, int):bool,
+-169:RemoveBot(;str):bool,
 -170:OpenMenu(str):int,
 -171:CloseMenu():int,
 -172:BanFromGame(int, int; str):int,
