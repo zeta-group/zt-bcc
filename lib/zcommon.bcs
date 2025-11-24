@@ -1343,6 +1343,14 @@ enum {
    CSF_SOLIDACTORS
 };
 
+enum {
+   PLAYERSTATUS_CHATTING = 1<<0,
+   PLAYERSTATUS_TALKING = 1<<1,
+   PLAYERSTATUS_INCONSOLE = 1<<2,
+   PLAYERSTATUS_INMENU = 1<<3,
+   PLAYERSTATUS_LAGGING = 1<<4
+};
+
 // Functions
 // --------------------------------------------------------------------------
 
@@ -1785,8 +1793,8 @@ special
 // built-in to ACC. So 162-165 are used up function indices.
 -166:LumpGetInfo(int, int):raw,
 -167:LumpClose(int):void,
--168:AddBot(str, int):int,
--169:RemoveBot(str):int,
+-168:AddBot(;str, int):bool,
+-169:RemoveBot(;str):bool,
 -170:OpenMenu(str):int,
 -171:CloseMenu():int,
 -172:BanFromGame(int, int; str):int,
