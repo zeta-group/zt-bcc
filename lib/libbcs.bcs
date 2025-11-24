@@ -13,7 +13,7 @@ strict namespace bcs {
 #define LIBBCS_ARR_EXTRA 8
 #endif
 
-#define _LIBBCS_REV "libbcs0100-alpha-7"
+#define _LIBBCS_REV "libbcs0100-alpha-8"
 #endif
 
 #ifdef __LIBBCS_NO_LOCAL_HEAP
