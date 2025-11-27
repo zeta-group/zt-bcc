@@ -1294,7 +1294,9 @@ enum {
 
 enum {
    LUMP_INFO_SIZE,
-   LUMP_INFO_NAME
+   LUMP_INFO_NAME,
+   LUMP_INFO_NAMESPACE,
+   LUMP_INFO_WAD
 };
 
 enum {
