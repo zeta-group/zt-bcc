@@ -1812,6 +1812,7 @@ special
 -183:SetControlPointInfo(raw, raw, raw):raw,
 -184:GetSkinProperty(raw, raw; raw, raw):raw,
 -185:IsPlayerContestingControlPoint(raw, raw):raw,
+-186:SetMapUsedStatus(int, bool):bool,
 
 // Q-Zandronum
 -141:SetActionScript(int,int,str):void,
