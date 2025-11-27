@@ -1300,6 +1300,16 @@ enum {
 };
 
 enum {
+   WAD_INFO_NAME,
+   WAD_INFO_FIRSTLUMP,
+   WAD_INFO_LASTLUMP,
+   WAD_INFO_PARENTWAD,
+   WAD_INFO_LOADEDAUTOMATICALLY,
+   WAD_INFO_OPTIONAL,
+   WAD_INFO_HASAUTHENTICATEDLUMPS
+};
+
+enum {
    SPROP_TYPE_UNKNOWN,
    SPROP_TYPE_INT,
    SPROP_TYPE_BOOL,
@@ -1814,6 +1824,7 @@ special
 -183:SetControlPointInfo(raw, raw, raw):raw,
 -184:GetSkinProperty(raw, raw; raw, raw):raw,
 -185:IsPlayerContestingControlPoint(raw, raw):raw,
+-186:GetWadInfo(int, int):raw,
 -186:SetMapUsedStatus(int, bool):bool,
 
 // Q-Zandronum
