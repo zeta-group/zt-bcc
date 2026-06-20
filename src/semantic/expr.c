@@ -3275,10 +3275,9 @@ static void test_lengthof( struct semantic* semantic, struct expr_test* test,
    struct expr_test operand;
    s_init_expr_test( &operand, false, false );
    test_nested_expr( semantic, test, &operand, call->operand );
-   int typedesc = s_describe_type( &operand.type );
+   enum type_description typedesc = s_describe_type( &operand.type );
 
-   if ( (typedesc == TYPEDESC_ENUM) && (typedesc == TYPEDESC_NONE) && (typedesc == TYPEDESC_ARRAY) && (typedesc == TYPEDESC_STRUCT) ) {
-   //if ( (typedesc != TYPEDESC_STRUCTREF) && (typedesc != TYPEDESC_ARRAYREF) ) {
+   if ( typedesc == TYPEDESC_NONE ) {
       s_diag( semantic, DIAG_POS_ERR, &call->operand->pos,
          "operand is of unsupported type for lengthof" );
       s_bail( semantic );
@@ -3309,12 +3308,7 @@ static void test_lengthof( struct semantic* semantic, struct expr_test* test,
       return;
    }
 
-   // Compile-time evaluation.
-   if ( call->operand->folded ) {
-      call->value = operand.dim->length;
-      result->value = call->value;
-      result->folded = true;
-   }
+   call->operand->folded = false;
 }
 
 static void test_conversion( struct semantic* semantic, struct expr_test* test,
